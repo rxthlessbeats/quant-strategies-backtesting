@@ -1,0 +1,8 @@
+pyproject.toml
+src/trading_rookie/__init__.py
+src/trading_rookie.egg-info/PKG-INFO
+src/trading_rookie.egg-info/SOURCES.txt
+src/trading_rookie.egg-info/dependency_links.txt
+src/trading_rookie.egg-info/top_level.txt
+src/trading_rookie/data/__init__.py
+src/trading_rookie/data/get_data.py

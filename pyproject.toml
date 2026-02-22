@@ -1,0 +1,7 @@
+[project]
+name = "trading_rookie"
+version = "0.1.0"
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "src"}
