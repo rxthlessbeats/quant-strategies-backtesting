@@ -9,6 +9,7 @@ class DataDownloader:
     def __init__(self):
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            # "User-Agent": random.choice(USER_AGENTS)
         }
 
     def _timestamp(self, date: str):
@@ -37,10 +38,14 @@ class DataDownloader:
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?period1={start_timestamp}&period2={end_timestamp}&interval={interval}"
         response = requests.get(url, headers=self.headers)
 
-        if response.json()["chart"]["error"] is not None:
+        if response.status_code != 200:
             raise Exception(
-                f'Failed to get stock data: Error code {response.status_code}: {response.json()["chart"]["error"]["description"]}'
+                f"Failed to get stock data: Error code {response.status_code}: {response.text}"
             )
+        elif response.status_code == 429:
+            raise Exception(f"Rate limit exceeded: {response.text}")
+        else:
+            print(f"Successfully got stock data for {symbol}")
 
         data = response.json()["chart"]["result"][0]
         quote = data["indicators"]["quote"][0]
