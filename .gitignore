@@ -1,2 +1,6 @@
 __pycache__/
 .ruff_cache/
+backend/data/*.db
+*.db
+.env
+.ipynb_checkpoints/

@@ -1,8 +1,8 @@
-from trading_rookie.universe.sp500 import (
-    SectorMap,
+from app.research.universe.sp500 import (
     MomentumScorer,
-    UniverseSelector,
     SP500Universe,
+    SectorMap,
+    UniverseSelector,
 )
 
 __all__ = ["SectorMap", "MomentumScorer", "UniverseSelector", "SP500Universe"]

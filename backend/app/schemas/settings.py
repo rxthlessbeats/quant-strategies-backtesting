@@ -1,0 +1,36 @@
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _default_database_url() -> str:
+    data_dir = _BACKEND_ROOT / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{(data_dir / 'stock_data.db').as_posix()}"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    database_url: str = Field(default_factory=_default_database_url)
+    backend_root: Path = Field(default=_BACKEND_ROOT)
+
+    @property
+    def is_sqlite(self) -> bool:
+        return self.database_url.startswith("sqlite")
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()
