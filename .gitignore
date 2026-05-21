@@ -4,3 +4,6 @@ backend/data/*.db
 *.db
 .env
 .ipynb_checkpoints/
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
