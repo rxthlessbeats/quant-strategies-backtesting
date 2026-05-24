@@ -63,8 +63,8 @@ def compute_for_query(
 ) -> tuple[OhlcvResult, IndicatorSeriesMap]:
     ohlcv = get_ohlcv(db, query)
     specs = parse_indicator_specs(query.indicators)
-    start_ts = int(pd.Timestamp(query.start).timestamp())
-    end_ts = int(pd.Timestamp(query.end).timestamp())
+    start_ts = int(pd.Timestamp(query.start).timestamp()) if query.start else None
+    end_ts = int(pd.Timestamp(query.end).timestamp()) if query.end else None
     df = crud.load_bars_dataframe(db, query.symbol, query.interval, start_ts, end_ts)
     if not df.empty:
         df = df.dropna(subset=["Close"])

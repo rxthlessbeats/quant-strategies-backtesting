@@ -81,3 +81,54 @@ class DataDownloader:
 
         stock_data.set_index("Date", inplace=True)
         return stock_data
+
+    def yahoo_max(self, symbol: str, interval: str = "1d") -> pd.DataFrame:
+        end_timestamp = int(time.time())
+        url = (
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+            f"?period1=0&period2={end_timestamp}&interval={interval}"
+        )
+        response = requests.get(url, headers=self.headers, timeout=30)
+
+        if response.status_code == 429:
+            raise Exception(f"Rate limit exceeded: {response.text}")
+        if response.status_code != 200:
+            raise Exception(
+                f"Failed to get stock data: Error code {response.status_code}: {response.text}"
+            )
+
+        parsed = YahooChartResponse.model_validate(response.json())
+        chart = parsed.first_result()
+        quote = chart.indicators.quote[0]
+        date = pd.to_datetime(chart.timestamp, unit="s")
+
+        if "d" in interval:
+            date = date.normalize()
+            adj = chart.indicators.adjclose[0] if chart.indicators.adjclose else None
+            stock_data = pd.DataFrame(
+                {
+                    "Date": date,
+                    "Open": quote.open,
+                    "High": quote.high,
+                    "Low": quote.low,
+                    "Close": quote.close,
+                    "Volume": quote.volume,
+                    "Adj_close": adj.adjclose if adj else quote.close,
+                }
+            )
+        elif "h" in interval or "m" in interval:
+            stock_data = pd.DataFrame(
+                {
+                    "Date": date,
+                    "Open": quote.open,
+                    "High": quote.high,
+                    "Low": quote.low,
+                    "Close": quote.close,
+                    "Volume": quote.volume,
+                }
+            )
+        else:
+            raise ValueError(f"Unsupported interval: {interval}")
+
+        stock_data.set_index("Date", inplace=True)
+        return stock_data

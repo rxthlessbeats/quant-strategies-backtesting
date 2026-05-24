@@ -20,8 +20,8 @@ export interface ChartMeta {
 export interface AnalysisChartResponse {
   symbol: string;
   interval: string;
-  start: string;
-  end: string;
+  start: string | null;
+  end: string | null;
   meta: ChartMeta;
   bars: BarPoint[];
   indicators: Record<string, (number | null)[]>;

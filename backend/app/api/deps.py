@@ -7,8 +7,8 @@ from app.schemas.requests import AnalysisChartQuery, ChartQuery
 
 def get_chart_query(
     symbol: str = Query(..., description="Ticker symbol"),
-    start: str = Query(..., description="Start date YYYY-MM-DD"),
-    end: str = Query(..., description="End date YYYY-MM-DD"),
+    start: str | None = Query(None, description="Start date YYYY-MM-DD"),
+    end: str | None = Query(None, description="End date YYYY-MM-DD"),
     interval: str = Query("1d"),
 ) -> ChartQuery:
     return ChartQuery(symbol=symbol, start=start, end=end, interval=interval)
@@ -16,8 +16,8 @@ def get_chart_query(
 
 def get_analysis_chart_query(
     symbol: str = Query(..., description="Ticker symbol"),
-    start: str = Query(..., description="Start date YYYY-MM-DD"),
-    end: str = Query(..., description="End date YYYY-MM-DD"),
+    start: str | None = Query(None, description="Start date YYYY-MM-DD"),
+    end: str | None = Query(None, description="End date YYYY-MM-DD"),
     interval: str = Query("1d"),
     indicators: str | None = Query(
         None,

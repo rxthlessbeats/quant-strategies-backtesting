@@ -18,19 +18,19 @@ def get_bars(
     db: Session,
     symbol: str,
     interval: str,
-    start_ts: int,
-    end_ts: int,
+    start_ts: int | None = None,
+    end_ts: int | None = None,
 ) -> list[Bar]:
-    stmt = (
-        select(Bar)
-        .where(
-            Bar.symbol == symbol,
-            Bar.interval == interval,
-            Bar.ts >= start_ts,
-            Bar.ts <= end_ts,
-        )
-        .order_by(Bar.ts)
-    )
+    conditions = [
+        Bar.symbol == symbol,
+        Bar.interval == interval,
+    ]
+    if start_ts is not None:
+        conditions.append(Bar.ts >= start_ts)
+    if end_ts is not None:
+        conditions.append(Bar.ts <= end_ts)
+
+    stmt = select(Bar).where(*conditions).order_by(Bar.ts)
     return list(db.scalars(stmt).all())
 
 
@@ -132,8 +132,8 @@ def load_bars_dataframe(
     db: Session,
     symbol: str,
     interval: str,
-    start_ts: int,
-    end_ts: int,
+    start_ts: int | None = None,
+    end_ts: int | None = None,
 ) -> pd.DataFrame:
     return bars_to_dataframe(get_bars(db, symbol, interval, start_ts, end_ts))
 

@@ -8,21 +8,67 @@ import {
   LineSeries,
   createChart,
   type IChartApi,
+  type UTCTimestamp,
 } from "lightweight-charts";
 import {
-  INDICATOR_COLORS,
   toCandlestickData,
   toIndicatorLineData,
   toVolumeData,
 } from "@/lib/chart-data";
+import type { ChartView } from "@/lib/chart-view";
 import type { AnalysisChartResponse } from "@/lib/types";
 
 interface TradingChartProps {
   data: AnalysisChartResponse;
+  colorMap: Record<string, string>;
+  selectedView: ChartView;
   height?: number;
 }
 
-export default function TradingChart({ data, height = 480 }: TradingChartProps) {
+const VIEW_MONTHS: Partial<Record<ChartView, number>> = {
+  "1M": 1,
+  "3M": 3,
+  "6M": 6,
+  "1Y": 12,
+  "5Y": 60,
+  "10Y": 120,
+};
+
+function subtractMonths(timestamp: number, months: number): UTCTimestamp {
+  const date = new Date(timestamp * 1000);
+  date.setUTCMonth(date.getUTCMonth() - months);
+  return Math.floor(date.getTime() / 1000) as UTCTimestamp;
+}
+
+function visibleRangeForView(
+  data: AnalysisChartResponse,
+  selectedView: ChartView,
+) {
+  const first = data.bars[0]?.timestamp;
+  const last = data.bars[data.bars.length - 1]?.timestamp;
+  if (!first || !last) return null;
+
+  if (selectedView === "ALL") {
+    return {
+      from: first as UTCTimestamp,
+      to: last as UTCTimestamp,
+    };
+  }
+
+  const months = VIEW_MONTHS[selectedView] ?? 12;
+  const from = Math.max(first, subtractMonths(last, months));
+  return {
+    from: from as UTCTimestamp,
+    to: last as UTCTimestamp,
+  };
+}
+
+export default function TradingChart({
+  data,
+  colorMap,
+  selectedView,
+  height = 520,
+}: TradingChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -42,7 +88,12 @@ export default function TradingChart({ data, height = 480 }: TradingChartProps) 
         horzLines: { color: "#1e293b" },
       },
       rightPriceScale: { borderColor: "#334155" },
-      timeScale: { borderColor: "#334155" },
+      timeScale: {
+        borderColor: "#334155",
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+      },
     });
     chartRef.current = chart;
 
@@ -65,18 +116,23 @@ export default function TradingChart({ data, height = 480 }: TradingChartProps) 
     volumeSeries.setData(toVolumeData(data.bars));
 
     const indicatorKeys = Object.keys(data.indicators);
-    indicatorKeys.forEach((key, index) => {
+    indicatorKeys.forEach((key) => {
       const lineSeries = chart.addSeries(LineSeries, {
-        color: INDICATOR_COLORS[index % INDICATOR_COLORS.length],
+        color: colorMap[key] ?? "#2962FF",
         lineWidth: 2,
-        title: key,
+        title: "",
+        lastValueVisible: false,
+        priceLineVisible: false,
       });
       lineSeries.setData(
         toIndicatorLineData(data.bars, data.indicators[key] ?? []),
       );
     });
 
-    chart.timeScale().fitContent();
+    const visibleRange = visibleRangeForView(data, selectedView);
+    if (visibleRange) {
+      chart.timeScale().setVisibleRange(visibleRange);
+    }
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -92,12 +148,12 @@ export default function TradingChart({ data, height = 480 }: TradingChartProps) 
       chart.remove();
       chartRef.current = null;
     };
-  }, [data, height]);
+  }, [data, colorMap, selectedView, height]);
 
   if (data.bars.length === 0) {
     return (
       <div
-        className="flex items-center justify-center rounded-lg border border-border bg-slate-950 text-muted-foreground"
+        className="flex items-center justify-center bg-slate-950 text-muted-foreground"
         style={{ height }}
       >
         No bars returned for this range.
@@ -108,7 +164,7 @@ export default function TradingChart({ data, height = 480 }: TradingChartProps) 
   return (
     <div
       ref={containerRef}
-      className="w-full overflow-hidden rounded-lg border border-border"
+      className="h-full w-full"
       style={{ height }}
     />
   );

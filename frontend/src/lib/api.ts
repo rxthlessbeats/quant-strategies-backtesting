@@ -34,8 +34,8 @@ async function apiFetch<T>(path: string): Promise<T> {
 
 export interface ChartQueryParams {
   symbol: string;
-  start: string;
-  end: string;
+  start?: string;
+  end?: string;
   interval?: string;
   indicators?: string;
 }
@@ -45,10 +45,14 @@ export function fetchChart(
 ): Promise<AnalysisChartResponse> {
   const search = new URLSearchParams({
     symbol: params.symbol,
-    start: params.start,
-    end: params.end,
     interval: params.interval ?? "1d",
   });
+  if (params.start) {
+    search.set("start", params.start);
+  }
+  if (params.end) {
+    search.set("end", params.end);
+  }
   if (params.indicators?.trim()) {
     search.set("indicators", params.indicators.trim());
   }

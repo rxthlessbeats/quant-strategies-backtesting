@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.common import validate_date_str
 
@@ -9,8 +9,8 @@ class ChartQuery(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     symbol: str = Field(..., min_length=1, max_length=32)
-    start: str = Field(..., description="YYYY-MM-DD")
-    end: str = Field(..., description="YYYY-MM-DD")
+    start: str | None = Field(default=None, description="YYYY-MM-DD")
+    end: str | None = Field(default=None, description="YYYY-MM-DD")
     interval: str = Field(default="1d", max_length=8)
 
     @field_validator("symbol")
@@ -20,8 +20,16 @@ class ChartQuery(BaseModel):
 
     @field_validator("start", "end")
     @classmethod
-    def validate_dates(cls, value: str) -> str:
+    def validate_dates(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         return validate_date_str(value)
+
+    @model_validator(mode="after")
+    def validate_date_pair(self) -> "ChartQuery":
+        if (self.start is None) != (self.end is None):
+            raise ValueError("start and end must be provided together")
+        return self
 
 
 class AnalysisChartQuery(ChartQuery):

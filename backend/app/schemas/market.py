@@ -13,8 +13,8 @@ class ChartMeta(BaseModel):
 class StockBarsResponse(BaseModel):
     symbol: str
     interval: str
-    start: str
-    end: str
+    start: str | None
+    end: str | None
     meta: ChartMeta
     bars: list[BarPoint]
 
@@ -22,8 +22,8 @@ class StockBarsResponse(BaseModel):
 class AnalysisChartResponse(BaseModel):
     symbol: str
     interval: str
-    start: str
-    end: str
+    start: str | None
+    end: str | None
     meta: ChartMeta
     bars: list[BarPoint]
     indicators: dict[str, list[float | None]] = Field(default_factory=dict)
@@ -34,8 +34,8 @@ class OhlcvResult(BaseModel):
 
     symbol: str
     interval: str
-    start: str
-    end: str
+    start: str | None
+    end: str | None
     meta: ChartMeta
     bars: list[BarPoint]
 

@@ -12,8 +12,8 @@ router = APIRouter(prefix="/api/v1/stocks", tags=["stocks"])
 @router.get("/{symbol}/bars", response_model=StockBarsResponse)
 def get_stock_bars(
     symbol: str,
-    start: str = Query(..., description="Start date YYYY-MM-DD"),
-    end: str = Query(..., description="End date YYYY-MM-DD"),
+    start: str | None = Query(None, description="Start date YYYY-MM-DD"),
+    end: str | None = Query(None, description="End date YYYY-MM-DD"),
     interval: str = Query("1d", description="Bar interval: 1d, 1h, etc."),
     db: Session = Depends(get_db),
 ):

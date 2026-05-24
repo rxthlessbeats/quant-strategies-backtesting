@@ -10,8 +10,8 @@ from app.services.sync_service import sync_symbol
 
 def get_ohlcv(db: Session, query: ChartQuery) -> OhlcvResult:
     source = sync_symbol(db, query.symbol, query.start, query.end, query.interval)
-    start_ts = int(pd.Timestamp(query.start).timestamp())
-    end_ts = int(pd.Timestamp(query.end).timestamp())
+    start_ts = int(pd.Timestamp(query.start).timestamp()) if query.start else None
+    end_ts = int(pd.Timestamp(query.end).timestamp()) if query.end else None
     df = crud.load_bars_dataframe(db, query.symbol, query.interval, start_ts, end_ts)
     if not df.empty:
         df = df.dropna(subset=["Close"])
@@ -27,8 +27,8 @@ def get_ohlcv(db: Session, query: ChartQuery) -> OhlcvResult:
     return OhlcvResult(
         symbol=query.symbol,
         interval=query.interval,
-        start=query.start,
-        end=query.end,
+        start=(df.index.min().strftime("%Y-%m-%d") if not df.empty else query.start),
+        end=(df.index.max().strftime("%Y-%m-%d") if not df.empty else query.end),
         meta=ChartMeta(
             source=source,
             cached_through=cached_through,
