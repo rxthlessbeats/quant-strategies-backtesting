@@ -1,4 +1,4 @@
-# Trading Rookie
+# RookieTrader
 
 Monorepo: FastAPI backend + Next.js frontend.
 

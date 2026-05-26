@@ -33,17 +33,37 @@ def compute_indicators(
     for spec in specs:
         entry = REGISTRY[spec.name]
         params = entry.merged_params(spec.params.model_dump(exclude_none=True))
-        series = entry.compute(df, **params)
-        key = _series_key(spec.name, params)
-        result[key] = series_to_float_list(series)
+        output = entry.compute(df, **params)
+        if isinstance(output, pd.Series):
+            result[_series_key(spec.name, params)] = series_to_float_list(output)
+        else:
+            for part, series in output.items():
+                result[_series_key(spec.name, params, part)] = series_to_float_list(
+                    series
+                )
 
     return IndicatorSeriesMap(series=result)
 
 
-def _series_key(name: str, params: dict) -> str:
-    if "period" in params:
-        return f"{name}_{params['period']}"
+def _series_key(name: str, params: dict, part: str | None = None) -> str:
+    suffix = _params_suffix(name, params)
+    if part is not None:
+        if name == "macd" and part == "line":
+            return f"{name}_{suffix}"
+        return f"{name}_{part}_{suffix}"
+    if suffix:
+        return f"{name}_{suffix}"
     return name
+
+
+def _params_suffix(name: str, params: dict) -> str:
+    if name == "macd":
+        return "_".join(str(params[key]) for key in ("fast", "slow", "signal"))
+    if name == "bbands":
+        return "_".join(str(params[key]) for key in ("period", "std"))
+    if "period" in params:
+        return str(params["period"])
+    return ""
 
 
 def list_catalog() -> list[IndicatorCatalogItem]:

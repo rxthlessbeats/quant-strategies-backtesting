@@ -1,4 +1,4 @@
-# Build from backend/: docker build -t trading-rookie-api .
+# Build from backend/: docker build -t rookie-trader-api .
 FROM python:3.11-slim
 
 WORKDIR /app

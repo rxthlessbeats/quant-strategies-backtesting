@@ -1,4 +1,4 @@
-# Trading Rookie Backend
+# RookieTrader Backend
 
 FastAPI service: SQLite cache → Yahoo fetch → technical indicators → JSON for K-line charts.
 
@@ -64,6 +64,21 @@ Default: `backend/data/stock_data.db`
 set DATABASE_URL=postgresql://user:pass@host:5432/stock_data
 ```
 
+## Data Provider
+
+Default provider: `alpha_vantage`
+
+```cmd
+set DATA_PROVIDER=alpha_vantage
+set ALPHA_VANTAGE_API_KEY=your_key_here
+```
+
+To use the existing Yahoo downloader instead:
+
+```cmd
+set DATA_PROVIDER=yahoo
+```
+
 ## Notebooks
 
 ```cmd
@@ -85,6 +100,6 @@ CSV outputs stay in `notebooks/outputs/`.
 
 ```cmd
 cd backend
-docker build -t trading-rookie-api .
-docker run -p 8000:8000 trading-rookie-api
+docker build -t rookie-trader-api .
+docker run -p 8000:8000 rookie-trader-api
 ```

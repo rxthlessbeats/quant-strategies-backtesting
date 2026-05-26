@@ -5,9 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from app.db.models import Bar, FetchMeta
+from app.db.models import Bar, CompanyFundamentals, FetchMeta
 from app.schemas.converters import bar_rows_from_dataframe, bars_to_dataframe
-from app.schemas.db import BarRow, FetchMetaRow
+from app.schemas.db import BarRow, CompanyFundamentalsRow, FetchMetaRow
 
 
 def _is_sqlite(session: Session) -> bool:
@@ -113,10 +113,52 @@ def upsert_fetch_meta(db: Session, row: FetchMetaRow) -> FetchMeta:
     return meta
 
 
+def get_company_fundamentals(db: Session, symbol: str) -> CompanyFundamentals | None:
+    return db.get(CompanyFundamentals, symbol.upper())
+
+
+def company_fundamentals_to_schema(
+    fundamentals: CompanyFundamentals | None,
+) -> CompanyFundamentalsRow | None:
+    if fundamentals is None:
+        return None
+    return CompanyFundamentalsRow(
+        **{
+            column.name: getattr(fundamentals, column.name)
+            for column in CompanyFundamentals.__table__.columns
+        }
+    )
+
+
+def upsert_company_fundamentals(
+    db: Session, row: CompanyFundamentalsRow
+) -> CompanyFundamentals:
+    payload = row.to_orm_dict()
+    payload["symbol"] = row.symbol.upper()
+    now = datetime.now(timezone.utc).isoformat()
+    payload["fetched_at"] = now
+
+    fundamentals = get_company_fundamentals(db, row.symbol)
+    if fundamentals is None:
+        fundamentals = CompanyFundamentals(**payload)
+        db.add(fundamentals)
+    else:
+        for key, value in payload.items():
+            setattr(fundamentals, key, value)
+
+    db.commit()
+    db.refresh(fundamentals)
+    return fundamentals
+
+
 def last_expected_daily_ts() -> int:
     today = pd.Timestamp.now(tz="UTC").normalize()
     prev_bday = today - pd.offsets.BDay(1)
     return int(prev_bday.timestamp())
+
+
+def _last_expected_daily_date() -> pd.Timestamp:
+    return pd.Timestamp.now(tz="UTC").normalize() - pd.offsets.BDay(1)
 
 
 def is_fresh(db: Session, symbol: str, interval: str) -> bool:
@@ -125,7 +167,8 @@ def is_fresh(db: Session, symbol: str, interval: str) -> bool:
     meta = get_fetch_meta(db, symbol, interval)
     if meta is None or meta.last_bar_ts is None:
         return False
-    return meta.last_bar_ts >= last_expected_daily_ts()
+    last_bar_day = pd.to_datetime(meta.last_bar_ts, unit="s", utc=True).normalize()
+    return last_bar_day >= _last_expected_daily_date()
 
 
 def load_bars_dataframe(

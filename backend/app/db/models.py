@@ -33,3 +33,50 @@ class FetchMeta(Base):
     fetched_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
     start_date: Mapped[str | None] = mapped_column(String(16), nullable=True)
     end_date: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
+
+class CompanyFundamentals(Base):
+    __tablename__ = "company_fundamentals"
+
+    symbol: Mapped[str] = mapped_column(String(32), primary_key=True)
+    asset_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    cik: Mapped[str | None] = mapped_column(String, nullable=True)
+    exchange: Mapped[str | None] = mapped_column(String, nullable=True)
+    currency: Mapped[str | None] = mapped_column(String, nullable=True)
+    country: Mapped[str | None] = mapped_column(String, nullable=True)
+    sector: Mapped[str | None] = mapped_column(String, nullable=True)
+    industry: Mapped[str | None] = mapped_column(String, nullable=True)
+    address: Mapped[str | None] = mapped_column(String, nullable=True)
+    fiscal_year_end: Mapped[str | None] = mapped_column(String, nullable=True)
+    latest_quarter: Mapped[str | None] = mapped_column(String, nullable=True)
+    ebitda: Mapped[str | None] = mapped_column(String, nullable=True)
+    book_value: Mapped[str | None] = mapped_column(String, nullable=True)
+    dividend_per_share: Mapped[str | None] = mapped_column(String, nullable=True)
+    eps: Mapped[str | None] = mapped_column(String, nullable=True)
+    revenue_per_share_ttm: Mapped[str | None] = mapped_column(String, nullable=True)
+    profit_margin: Mapped[str | None] = mapped_column(String, nullable=True)
+    operating_margin_ttm: Mapped[str | None] = mapped_column(String, nullable=True)
+    return_on_assets_ttm: Mapped[str | None] = mapped_column(String, nullable=True)
+    return_on_equity_ttm: Mapped[str | None] = mapped_column(String, nullable=True)
+    revenue_ttm: Mapped[str | None] = mapped_column(String, nullable=True)
+    gross_profit_ttm: Mapped[str | None] = mapped_column(String, nullable=True)
+    diluted_eps_ttm: Mapped[str | None] = mapped_column(String, nullable=True)
+    quarterly_earnings_growth_yoy: Mapped[str | None] = mapped_column(
+        String, nullable=True
+    )
+    quarterly_revenue_growth_yoy: Mapped[str | None] = mapped_column(
+        String, nullable=True
+    )
+    shares_outstanding: Mapped[str | None] = mapped_column(String, nullable=True)
+    dividend_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    ex_dividend_date: Mapped[str | None] = mapped_column(String, nullable=True)
+    analyst_rating_strong_buy: Mapped[str | None] = mapped_column(String, nullable=True)
+    analyst_rating_buy: Mapped[str | None] = mapped_column(String, nullable=True)
+    analyst_rating_hold: Mapped[str | None] = mapped_column(String, nullable=True)
+    analyst_rating_sell: Mapped[str | None] = mapped_column(String, nullable=True)
+    analyst_rating_strong_sell: Mapped[str | None] = mapped_column(
+        String, nullable=True
+    )
+    fetched_at: Mapped[str | None] = mapped_column(String(32), nullable=True)

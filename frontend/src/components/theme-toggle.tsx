@@ -2,49 +2,56 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import * as React from "react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useHydration } from "@/hooks/use-hydration";
+import { cn } from "@/lib/utils";
 
 export function ThemeToggle() {
-  const { setTheme, theme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const hydrated = useHydration();
+  const isDark = resolvedTheme === "dark";
+
+  if (!hydrated) {
+    return <div className="h-6 w-11 shrink-0 rounded-full bg-muted" />;
+  }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="relative">
-          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          {hydrated && theme === "system" && <AutoThemeBadge />}
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          System
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function AutoThemeBadge() {
-  return (
-    <span className="absolute -right-2 -top-2 flex h-4 items-center rounded-full bg-secondary px-1.5 text-[0.6rem] text-secondary-foreground ring-2 ring-background duration-300 animate-in zoom-in-50">
-      auto
-    </span>
+    <div className="flex items-center gap-2">
+      <Sun
+        className={cn(
+          "h-4 w-4 transition-colors",
+          isDark ? "text-muted-foreground" : "text-foreground",
+        )}
+        aria-hidden
+      />
+      <button
+        type="button"
+        role="switch"
+        aria-checked={isDark}
+        aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        onClick={() => setTheme(isDark ? "light" : "dark")}
+        className={cn(
+          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full",
+          "border-2 border-transparent transition-colors focus-visible:outline-none",
+          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "focus-visible:ring-offset-background",
+          isDark ? "bg-primary" : "bg-muted",
+        )}
+      >
+        <span
+          className={cn(
+            "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-md",
+            "ring-0 transition-transform",
+            isDark ? "translate-x-5" : "translate-x-0",
+          )}
+        />
+      </button>
+      <Moon
+        className={cn(
+          "h-4 w-4 transition-colors",
+          isDark ? "text-foreground" : "text-muted-foreground",
+        )}
+        aria-hidden
+      />
+    </div>
   );
 }

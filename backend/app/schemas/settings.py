@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     database_url: str = Field(default_factory=_default_database_url)
     backend_root: Path = Field(default=_BACKEND_ROOT)
+    data_provider: str = "yahoo"
+    alpha_vantage_api_key: str | None = None
 
     @property
     def is_sqlite(self) -> bool:

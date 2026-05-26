@@ -1,4 +1,3 @@
-import { TopNav } from "@/components/nav";
 import Container from "@/components/container";
 import { fetchHealth, getApiBaseUrl } from "@/lib/api";
 
@@ -20,7 +19,6 @@ export default async function HealthPage() {
 
   return (
     <>
-      <TopNav title="Health" />
       <Container className="py-6">
         <div className="max-w-lg space-y-4">
           <div

@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import analysis_routes, stock_routes
+from app.api import analysis_routes, market_routes, stock_routes
 from app.db.database import init_db
 from app.schemas.health import HealthResponse
 
@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Trading Rookie API",
+    title="RookieTrader API",
     description="Stock OHLCV cache and technical indicators",
     version="0.1.0",
     lifespan=lifespan,
@@ -41,6 +41,7 @@ async def validation_exception_handler(
 
 app.include_router(stock_routes.router)
 app.include_router(analysis_routes.router)
+app.include_router(market_routes.router)
 
 
 @app.get("/health", response_model=HealthResponse)

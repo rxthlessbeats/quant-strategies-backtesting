@@ -3,26 +3,31 @@ import { chartTitle } from "@/components/primitives";
 import { cn } from "@/lib/utils";
 
 export default function MetricCard({
-  title,
-  value,
+  label,
+  price,
   change,
   className,
 }: {
-  title: string;
-  value: string;
+  label: string;
+  price: number;
   change: number;
   className?: string;
 }) {
   return (
     <section className={cn("flex flex-col", className)}>
       <h2 className={cn(chartTitle({ color: "mute", size: "sm" }), "mb-1")}>
-        {title}
+        {label}
       </h2>
       <div className="flex items-center gap-2">
-        <span className="text-xl font-medium">{value}</span>
+        <span className="text-xl font-medium">
+          {price.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+            minimumFractionDigits: 2,
+          })}
+        </span>
         <ChangeIndicator change={change} />
       </div>
-      <div className="text-xs text-muted-foreground">Compare to last month</div>
+      <div className="text-xs text-muted-foreground">Compare to last day</div>
     </section>
   );
 }
@@ -38,7 +43,7 @@ function ChangeIndicator({ change }: { change: number }) {
       )}
     >
       {change > 0 ? "+" : ""}
-      {Math.round(change * 100)}%
+      {(change * 100).toFixed(2)}%
       {change > 0 ? (
         <ArrowUpRight className="ml-0.5 inline-block h-3 w-3" />
       ) : (

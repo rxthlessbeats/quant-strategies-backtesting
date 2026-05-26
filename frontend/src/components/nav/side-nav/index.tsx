@@ -5,7 +5,6 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import Navigation from "./components/navigation";
 import User from "./components/user";
-import Branding from "./components/branding";
 
 export default function SideNav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,7 +13,7 @@ export default function SideNav() {
     <>
       <button
         className={cn(
-          "fixed left-0 top-12 z-50 rounded-r-md bg-slate-200 px-2 py-1.5 text-primary-foreground shadow-md hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 tablet:hidden",
+          "fixed left-0 top-16 z-50 rounded-r-md bg-slate-200 px-2 py-1.5 text-primary-foreground shadow-md hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 tablet:hidden",
           "transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-44" : "translate-x-0",
         )}
@@ -35,7 +34,6 @@ export default function SideNav() {
       >
         <User />
         <Navigation />
-        <Branding />
       </aside>
     </>
   );

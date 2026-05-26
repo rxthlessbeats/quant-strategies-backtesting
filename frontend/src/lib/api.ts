@@ -1,7 +1,12 @@
 import type {
   AnalysisChartResponse,
+  CompanyOverview,
   HealthResponse,
+  IndexMetricsResponse,
   IndicatorCatalogItem,
+  PerformanceBenchmarkOptionsResponse,
+  PerformanceComparisonResponse,
+  TickerSearchResponse,
 } from "@/lib/types";
 
 const API_BASE =
@@ -61,6 +66,33 @@ export function fetchChart(
 
 export function fetchIndicatorCatalog(): Promise<IndicatorCatalogItem[]> {
   return apiFetch("/api/v1/analysis/indicators");
+}
+
+export function fetchIndexMetrics(): Promise<IndexMetricsResponse> {
+  return apiFetch("/api/v1/market/index-metrics");
+}
+
+export function fetchPerformanceBenchmarkOptions(): Promise<PerformanceBenchmarkOptionsResponse> {
+  return apiFetch("/api/v1/market/performance-benchmarks");
+}
+
+export function fetchPerformanceComparison(
+  symbol: string,
+  benchmark = "SPY",
+): Promise<PerformanceComparisonResponse> {
+  const search = new URLSearchParams({ benchmark });
+  return apiFetch(
+    `/api/v1/market/performance-comparison/${encodeURIComponent(symbol)}?${search.toString()}`,
+  );
+}
+
+export function searchTickers(keywords: string): Promise<TickerSearchResponse> {
+  const search = new URLSearchParams({ keywords });
+  return apiFetch(`/api/v1/market/search?${search.toString()}`);
+}
+
+export function fetchCompanyOverview(symbol: string): Promise<CompanyOverview> {
+  return apiFetch(`/api/v1/market/overview/${encodeURIComponent(symbol)}`);
 }
 
 export function fetchHealth(): Promise<HealthResponse> {

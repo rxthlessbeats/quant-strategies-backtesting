@@ -1,4 +1,4 @@
-# Trading Rookie Frontend
+# RookieTrader Frontend
 
 Next.js UI based on [visactor-next-template](https://github.com/mengxi-ream/visactor-next-template) (layout and Shadcn only). Stock K-line charts use [TradingView Lightweight Charts](https://www.tradingview.com/lightweight-charts/).
 

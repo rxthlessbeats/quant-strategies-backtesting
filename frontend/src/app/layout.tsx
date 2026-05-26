@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Gabarito } from "next/font/google";
+import AppHeader from "@/components/nav/app-header";
 import { SideNav } from "@/components/nav";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,10 @@ const gabarito = Gabarito({ subsets: ["latin"], variable: "--font-gabarito" });
 export const metadata: Metadata = {
   title: siteConfig.title,
   description: siteConfig.description,
+  icons: {
+    icon: "/RookieTraderLogo.png",
+    apple: "/RookieTraderLogo.png",
+  },
 };
 
 export default function RootLayout({
@@ -24,7 +29,10 @@ export default function RootLayout({
         <Providers>
           <div className="flex min-h-[100dvh]">
             <SideNav />
-            <div className="flex-grow overflow-auto">{children}</div>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <AppHeader />
+              <div className="min-h-0 flex-grow overflow-auto">{children}</div>
+            </div>
           </div>
         </Providers>
       </body>

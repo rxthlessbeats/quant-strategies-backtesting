@@ -1,7 +1,11 @@
 "use client";
 
 import { MoreVertical, X } from "lucide-react";
-import { colorForSlot, type IndicatorSelection } from "@/lib/indicator-utils";
+import {
+  colorForSlot,
+  paramsDisplay,
+  type IndicatorSelection,
+} from "@/lib/indicator-utils";
 
 interface ChartLegendProps {
   selections: IndicatorSelection[];
@@ -32,7 +36,9 @@ export default function ChartLegend({
                 aria-hidden
               />
               <span className="min-w-[2.5rem] lowercase">{sel.id}</span>
-              <span className="tabular-nums text-slate-400">{sel.period}</span>
+              <span className="tabular-nums text-slate-400">
+                {paramsDisplay(sel.params)}
+              </span>
               <button
                 type="button"
                 onClick={(e) =>

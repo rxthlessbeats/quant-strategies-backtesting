@@ -30,7 +30,7 @@ class IndicatorSpec(BaseModel):
                 for kv in param_str.split(";"):
                     if "=" in kv:
                         k, v = kv.split("=", 1)
-                        params[k.strip()] = int(v) if v.isdigit() else v.strip()
+                        params[k.strip()] = _parse_param_value(v)
             return cls(name=name, params=IndicatorParams(**params))
         return cls(name=raw)
 
@@ -39,6 +39,17 @@ class IndicatorSpec(BaseModel):
 
         if self.name not in REGISTRY:
             raise ValueError(f"Unknown indicator: {self.name}")
+
+
+def _parse_param_value(value: str) -> int | float | str:
+    stripped = value.strip()
+    try:
+        numeric = float(stripped)
+    except ValueError:
+        return stripped
+    if numeric.is_integer():
+        return int(numeric)
+    return numeric
 
 
 class IndicatorCatalogItem(BaseModel):

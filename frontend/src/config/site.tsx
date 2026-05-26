@@ -14,8 +14,8 @@ export type Navigation = {
 };
 
 export const siteConfig = {
-  title: "Trading Rookie",
-  description: "Stock charts and technical indicators",
+  title: "Rookie Trader",
+  description: "Advanced Interactive Stock charts and technical indicators",
 };
 
 export const navigations: Navigation[] = [

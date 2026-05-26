@@ -32,8 +32,9 @@ def sync_symbol(
     end_ts = _to_ts(end_date) if end_date else None
 
     cached = crud.get_bars(db, symbol, interval, start_ts, end_ts)
+    had_coverage = len(cached) > 0
     fresh = crud.is_fresh(db, symbol, interval) if interval == "1d" else False
-    has_coverage = len(cached) > 0
+    has_coverage = had_coverage
     covers_start = bool(start_ts is None or (has_coverage and cached[0].ts <= start_ts))
 
     downloader = get_downloader()
@@ -76,7 +77,7 @@ def sync_symbol(
                 ),
             ),
         )
-        return DataSource.FETCH
+        return DataSource.CACHE if had_coverage else DataSource.FETCH
 
     if has_coverage and fresh and covers_start:
         return DataSource.CACHE
@@ -108,4 +109,4 @@ def sync_symbol(
             end_date=end_date,
         ),
     )
-    return DataSource.FETCH
+    return DataSource.CACHE if had_coverage else DataSource.FETCH

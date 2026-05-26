@@ -1,4 +1,3 @@
-import { TopNav } from "@/components/nav";
 import Container from "@/components/container";
 import { fetchIndicatorCatalog, getApiBaseUrl } from "@/lib/api";
 
@@ -16,7 +15,6 @@ export default async function IndicatorsPage() {
 
   return (
     <>
-      <TopNav title="Indicators" />
       <Container className="py-6">
         {error ? (
           <p className="text-destructive">{error}</p>
@@ -34,9 +32,13 @@ export default async function IndicatorsPage() {
               </thead>
               <tbody>
                 {items.map((item) => {
-                  const period = item.params.period;
+                  const entries = Object.entries(item.params);
                   const example =
-                    period != null ? `${item.id}:${period}` : item.id;
+                    entries.length === 1 && entries[0][0] === "period"
+                      ? `${item.id}:${entries[0][1]}`
+                      : `${item.id}:${entries
+                          .map(([key, value]) => `${key}=${value}`)
+                          .join(";")}`;
                   return (
                     <tr
                       key={item.id}

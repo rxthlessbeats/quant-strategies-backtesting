@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,29 +16,25 @@ import type { IndicatorCatalogItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface ChartToolbarProps {
-  symbol: string;
-  onSymbolChange: (symbol: string) => void;
-  onSymbolSubmit: () => void;
   selectedView: ChartView;
   onViewChange: (view: ChartView) => void;
   loading: boolean;
   meta?: ChartMeta;
   onAddIndicatorPick: (
     id: string,
-    defaultPeriod: number,
+    defaultParams: Record<string, number>,
     anchor: HTMLElement,
   ) => void;
+  onSaveSettings: () => void;
 }
 
 export default function ChartToolbar({
-  symbol,
-  onSymbolChange,
-  onSymbolSubmit,
   selectedView,
   onViewChange,
   loading,
   meta,
   onAddIndicatorPick,
+  onSaveSettings,
 }: ChartToolbarProps) {
   const [catalog, setCatalog] = useState<IndicatorCatalogItem[]>([]);
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -50,32 +46,9 @@ export default function ChartToolbar({
   }, []);
 
   return (
-    <form
+    <div
       className="flex flex-wrap items-center gap-2 px-3 py-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSymbolSubmit();
-      }}
     >
-      <div className="relative">
-        <input
-          type="text"
-          value={symbol}
-          onChange={(e) => onSymbolChange(e.target.value.toUpperCase())}
-          className="w-28 rounded border border-white/15 bg-black/40 py-1 pl-2 pr-8 text-sm uppercase text-slate-100"
-          placeholder="AAPL"
-        />
-        <button
-          type="submit"
-          aria-label="Search ticker"
-          className={cn(
-            "absolute right-1 top-1/2 -translate-y-1/2 rounded p-1",
-            "text-slate-400 hover:bg-white/10 hover:text-slate-100",
-          )}
-        >
-          <Search className="h-3.5 w-3.5" />
-        </button>
-      </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -97,10 +70,11 @@ export default function ChartToolbar({
             <DropdownMenuItem disabled>No indicators</DropdownMenuItem>
           ) : (
             catalog.map((item) => {
-              const period =
-                typeof item.params.period === "number"
-                  ? item.params.period
-                  : 20;
+              const params = Object.fromEntries(
+                Object.entries(item.params)
+                  .map(([key, value]) => [key, Number(value)])
+                  .filter(([, value]) => Number.isFinite(value)),
+              );
               return (
                 <DropdownMenuItem
                   key={item.id}
@@ -108,7 +82,7 @@ export default function ChartToolbar({
                     const anchor = addButtonRef.current;
                     if (!anchor) return;
                     window.setTimeout(() => {
-                      onAddIndicatorPick(item.id, period, anchor);
+                      onAddIndicatorPick(item.id, params, anchor);
                     }, 0);
                   }}
                 >
@@ -119,6 +93,19 @@ export default function ChartToolbar({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onSaveSettings}
+        className={cn(
+          "h-8 gap-1.5 px-2 text-xs text-slate-300",
+          "hover:bg-white/10 hover:text-slate-100",
+        )}
+      >
+        <Save className="h-3.5 w-3.5" />
+        Save
+      </Button>
       <div className="flex items-center gap-1 rounded-md border border-white/10 bg-black/20 p-1">
         {CHART_VIEW_OPTIONS.map((view) => (
           <Button
@@ -144,6 +131,6 @@ export default function ChartToolbar({
           {meta.source} · {meta.bar_count} bars
         </span>
       )}
-    </form>
+    </div>
   );
 }

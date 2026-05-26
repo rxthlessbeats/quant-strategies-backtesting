@@ -5,6 +5,9 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
 
 
+IndicatorOutput = pd.Series | dict[str, pd.Series]
+
+
 class IndicatorMeta(BaseModel):
     category: str
     params: dict[str, int | float] = Field(default_factory=dict)
@@ -15,7 +18,7 @@ class IndicatorEntry(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     meta: IndicatorMeta
-    compute: Callable[..., pd.Series]
+    compute: Callable[..., IndicatorOutput]
 
     @property
     def category(self) -> str:

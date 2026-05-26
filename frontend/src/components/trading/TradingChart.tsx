@@ -12,6 +12,7 @@ import {
 } from "lightweight-charts";
 import {
   toCandlestickData,
+  toIndicatorHistogramData,
   toIndicatorLineData,
   toVolumeData,
 } from "@/lib/chart-data";
@@ -61,6 +62,25 @@ function visibleRangeForView(
     from: from as UTCTimestamp,
     to: last as UTCTimestamp,
   };
+}
+
+function constantLineData(data: AnalysisChartResponse, value: number) {
+  return data.bars.map((bar) => ({
+    time: bar.timestamp as UTCTimestamp,
+    value,
+  }));
+}
+
+function isMacdKey(key: string): boolean {
+  return key.startsWith("macd_");
+}
+
+function isRsiKey(key: string): boolean {
+  return key.startsWith("rsi_");
+}
+
+function indicatorColor(key: string, colorMap: Record<string, string>): string {
+  return colorMap[key] ?? "#2962FF";
 }
 
 export default function TradingChart({
@@ -116,18 +136,96 @@ export default function TradingChart({
     volumeSeries.setData(toVolumeData(data.bars));
 
     const indicatorKeys = Object.keys(data.indicators);
-    indicatorKeys.forEach((key) => {
+    const rsiKeys = indicatorKeys.filter(isRsiKey);
+    const macdKeys = indicatorKeys.filter(isMacdKey);
+    const priceKeys = indicatorKeys.filter(
+      (key) => !isRsiKey(key) && !isMacdKey(key),
+    );
+    let nextPaneIndex = 1;
+    const rsiPaneIndex = rsiKeys.length > 0 ? nextPaneIndex++ : null;
+    const macdPaneIndex = macdKeys.length > 0 ? nextPaneIndex++ : null;
+
+    priceKeys.forEach((key) => {
       const lineSeries = chart.addSeries(LineSeries, {
-        color: colorMap[key] ?? "#2962FF",
+        color: indicatorColor(key, colorMap),
         lineWidth: 2,
         title: "",
-        lastValueVisible: false,
+        lastValueVisible: true,
         priceLineVisible: false,
       });
       lineSeries.setData(
         toIndicatorLineData(data.bars, data.indicators[key] ?? []),
       );
     });
+
+    if (rsiPaneIndex !== null) {
+      rsiKeys.forEach((key) => {
+        const lineSeries = chart.addSeries(
+          LineSeries,
+          {
+            color: indicatorColor(key, colorMap),
+            lineWidth: 2,
+            title: "",
+            lastValueVisible: true,
+            priceLineVisible: false,
+          },
+          rsiPaneIndex,
+        );
+        lineSeries.setData(
+          toIndicatorLineData(data.bars, data.indicators[key] ?? []),
+        );
+      });
+
+      [70, 30].forEach((level) => {
+        const guideSeries = chart.addSeries(
+          LineSeries,
+          {
+            color: "rgba(148, 163, 184, 0.45)",
+            lineWidth: 1,
+            title: "",
+            lastValueVisible: false,
+            priceLineVisible: false,
+          },
+          rsiPaneIndex,
+        );
+        guideSeries.setData(constantLineData(data, level));
+      });
+    }
+
+    if (macdPaneIndex !== null) {
+      macdKeys.forEach((key) => {
+        if (key.includes("_hist_")) {
+          const histSeries = chart.addSeries(
+            HistogramSeries,
+            {
+              title: "",
+              lastValueVisible: true,
+              priceLineVisible: false,
+            },
+            macdPaneIndex,
+          );
+          histSeries.setData(
+            toIndicatorHistogramData(data.bars, data.indicators[key] ?? []),
+          );
+          return;
+        }
+
+        const lineSeries = chart.addSeries(
+          LineSeries,
+          {
+            color: indicatorColor(key, colorMap),
+            lineWidth: 2,
+            title: "",
+            lastValueVisible: true,
+            priceLineVisible: false,
+          },
+          macdPaneIndex,
+        );
+        lineSeries.setData(
+          toIndicatorLineData(data.bars, data.indicators[key] ?? []),
+        );
+      });
+    }
 
     const visibleRange = visibleRangeForView(data, selectedView);
     if (visibleRange) {

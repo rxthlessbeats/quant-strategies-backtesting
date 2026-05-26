@@ -11,18 +11,32 @@ import { hasDuplicate, type IndicatorSelection } from "@/lib/indicator-utils";
 
 export type SettingsMode = "add" | "edit";
 
-const PERIOD_ERROR_MESSAGE =
-  "Period should be an integer and larger than 1";
+const PARAM_ERROR_MESSAGE =
+  "Indicator settings should be positive numbers no larger than 500";
 
-function parseIntegerInput(value: string): number | null {
+function parseNumberInput(value: string): number | null {
   const trimmed = value.trim();
-  if (!/^-?\d+$/.test(trimmed)) return null;
-  return parseInt(trimmed, 10);
+  if (!/^-?\d+(\.\d+)?$/.test(trimmed)) return null;
+  return Number(trimmed);
 }
 
-function isValidPeriod(value: string): boolean {
-  const parsed = parseIntegerInput(value);
-  return parsed !== null && parsed > 1 && parsed <= 500;
+function isValidParam(value: string): boolean {
+  const parsed = parseNumberInput(value);
+  return parsed !== null && parsed > 0 && parsed <= 500;
+}
+
+function paramsEqual(
+  left: Record<string, number>,
+  right: Record<string, number>,
+): boolean {
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key, index) => key === rightKeys[index] && left[key] === right[key],
+    )
+  );
 }
 
 interface IndicatorSettingsPanelProps {
@@ -30,11 +44,11 @@ interface IndicatorSettingsPanelProps {
   onOpenChange: (open: boolean) => void;
   mode: SettingsMode;
   indicatorId: string;
-  initialPeriod: number;
+  initialParams: Record<string, number>;
   slotId?: string;
   anchorEl: HTMLElement | null;
   selections: IndicatorSelection[];
-  onApply: (period: number) => void;
+  onApply: (params: Record<string, number>) => void;
   onBack: () => void;
   onPeriodError?: (message: string) => void;
 }
@@ -44,7 +58,7 @@ export default function IndicatorSettingsPanel({
   onOpenChange,
   mode,
   indicatorId,
-  initialPeriod,
+  initialParams,
   slotId,
   anchorEl,
   selections,
@@ -52,9 +66,7 @@ export default function IndicatorSettingsPanel({
   onBack,
   onPeriodError,
 }: IndicatorSettingsPanelProps) {
-  const [draftPeriodInput, setDraftPeriodInput] = useState(
-    String(initialPeriod),
-  );
+  const [draftInputs, setDraftInputs] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const anchorRef = useRef<HTMLElement | null>(null);
   anchorRef.current = anchorEl;
@@ -64,24 +76,37 @@ export default function IndicatorSettingsPanel({
 
   useEffect(() => {
     if (open) {
-      setDraftPeriodInput(String(initialPeriod));
+      setDraftInputs(
+        Object.fromEntries(
+          Object.entries(initialParams).map(([key, value]) => [
+            key,
+            String(value),
+          ]),
+        ),
+      );
       setError(null);
     }
-  }, [open, initialPeriod, indicatorId, mode, slotId]);
+  }, [open, initialParams, indicatorId, mode, slotId]);
 
   const handleApply = () => {
-    if (!isValidPeriod(draftPeriodInput)) {
-      onPeriodError?.(PERIOD_ERROR_MESSAGE);
+    const entries = Object.entries(draftInputs);
+    if (entries.length === 0 || entries.some(([, value]) => !isValidParam(value))) {
+      onPeriodError?.(PARAM_ERROR_MESSAGE);
       return;
     }
 
-    const period = parseIntegerInput(draftPeriodInput)!;
-    const isDuplicate = hasDuplicate(selections, indicatorId, period);
+    const params = Object.fromEntries(
+      entries.map(([key, value]) => [key, parseNumberInput(value)!]),
+    );
+    const isDuplicate = hasDuplicate(selections, indicatorId, params);
     const isSameSlot =
       mode === "edit" &&
       slotId &&
       selections.some(
-        (s) => s.slotId === slotId && s.id === indicatorId && s.period === period,
+        (s) =>
+          s.slotId === slotId &&
+          s.id === indicatorId &&
+          paramsEqual(s.params, params),
       );
 
     if (isDuplicate && !isSameSlot) {
@@ -89,11 +114,15 @@ export default function IndicatorSettingsPanel({
       return;
     }
 
-    onApply(period);
+    onApply(params);
   };
 
   const handleBack = () => {
-    setDraftPeriodInput(String(initialPeriod));
+    setDraftInputs(
+      Object.fromEntries(
+        Object.entries(initialParams).map(([key, value]) => [key, String(value)]),
+      ),
+    );
     setError(null);
     onBack();
   };
@@ -118,25 +147,30 @@ export default function IndicatorSettingsPanel({
               {indicatorId}
             </span>
           </div>
-          <div>
-            <label
-              htmlFor="indicator-period"
-              className="mb-1 block text-xs text-slate-400"
-            >
-              Period
-            </label>
-            <input
-              id="indicator-period"
-              type="text"
-              inputMode="numeric"
-              value={draftPeriodInput}
-              onChange={(e) => {
-                setDraftPeriodInput(e.target.value);
-                setError(null);
-              }}
-              className="w-full rounded border border-white/15 bg-black/40 px-2 py-1 text-sm text-slate-100"
-            />
-          </div>
+          {Object.entries(draftInputs).map(([key, value]) => (
+            <div key={key}>
+              <label
+                htmlFor={`indicator-${key}`}
+                className="mb-1 block text-xs capitalize text-slate-400"
+              >
+                {key}
+              </label>
+              <input
+                id={`indicator-${key}`}
+                type="text"
+                inputMode="decimal"
+                value={value}
+                onChange={(e) => {
+                  setDraftInputs((prev) => ({
+                    ...prev,
+                    [key]: e.target.value,
+                  }));
+                  setError(null);
+                }}
+                className="w-full rounded border border-white/15 bg-black/40 px-2 py-1 text-sm text-slate-100"
+              />
+            </div>
+          ))}
           {error && (
             <p className="text-xs text-red-400">{error}</p>
           )}

@@ -45,6 +45,28 @@ export function toIndicatorLineData(
   return points;
 }
 
+export function toIndicatorHistogramData(
+  bars: BarPoint[],
+  values: (number | null)[],
+): HistogramData<UTCTimestamp>[] {
+  const points: HistogramData<UTCTimestamp>[] = [];
+  const len = Math.min(bars.length, values.length);
+  for (let i = 0; i < len; i++) {
+    const v = values[i];
+    if (v != null && Number.isFinite(v)) {
+      points.push({
+        time: bars[i].timestamp as UTCTimestamp,
+        value: v,
+        color:
+          v >= 0
+            ? "rgba(38, 166, 154, 0.65)"
+            : "rgba(239, 83, 80, 0.65)",
+      });
+    }
+  }
+  return points;
+}
+
 export const INDICATOR_COLORS = [
   "#2962FF",
   "#E91E63",
