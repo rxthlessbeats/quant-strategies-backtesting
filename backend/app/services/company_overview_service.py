@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta, timezone
-
 from sqlalchemy.orm import Session
 
 from app.db import crud
@@ -10,8 +8,7 @@ from app.schemas.market import (
     TickerSearchItem,
     TickerSearchResponse,
 )
-
-FUNDAMENTALS_TTL = timedelta(hours=24)
+from app.services.market_data_service import get_company_overview_payload
 
 OVERVIEW_FIELD_MAP = {
     "Symbol": "symbol",
@@ -64,27 +61,10 @@ def search_tickers(keywords: str) -> TickerSearchResponse:
 
 def get_company_overview(db: Session, symbol: str) -> CompanyOverviewResponse:
     normalized = symbol.upper()
-    cached = crud.get_company_fundamentals(db, normalized)
-    if cached is not None and _is_recent(cached.fetched_at):
-        return _response_from_row(crud.company_fundamentals_to_schema(cached))
-
-    downloader = DataDownloader()
-    payload = downloader.company_overview(normalized)
+    payload = get_company_overview_payload(db, normalized)
     row = _row_from_overview(payload, normalized)
     saved = crud.upsert_company_fundamentals(db, row)
     return _response_from_row(crud.company_fundamentals_to_schema(saved))
-
-
-def _is_recent(fetched_at: str | None) -> bool:
-    if not fetched_at:
-        return False
-    try:
-        ts = datetime.fromisoformat(fetched_at)
-    except ValueError:
-        return False
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) - ts < FUNDAMENTALS_TTL
 
 
 def _row_from_overview(payload: dict, fallback_symbol: str) -> CompanyFundamentalsRow:

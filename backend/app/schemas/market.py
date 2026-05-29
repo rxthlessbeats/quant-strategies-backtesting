@@ -122,6 +122,31 @@ class CompanyOverviewResponse(BaseModel):
     fetched_at: str | None = None
 
 
+class MarketDataModuleItem(BaseModel):
+    symbol: str
+    module: str
+    payload: dict
+    payload_hash: str
+    last_checked_at: str | None = None
+    last_changed_at: str | None = None
+    fetched_at: str | None = None
+    next_refresh_at: str | None = None
+    latest_event_date: str | None = None
+    source: str
+    status: str | None = None
+
+
+class MarketDataModulesResponse(BaseModel):
+    symbol: str
+    modules: list[MarketDataModuleItem] = Field(default_factory=list)
+
+
+class MarketDataAreaResponse(BaseModel):
+    symbol: str
+    area: str
+    modules: list[MarketDataModuleItem] = Field(default_factory=list)
+
+
 class OhlcvResult(BaseModel):
     """Internal service result before API serialization."""
 

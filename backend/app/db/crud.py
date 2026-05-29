@@ -5,9 +5,14 @@ from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from app.db.models import Bar, CompanyFundamentals, FetchMeta
+from app.db.models import Bar, CompanyFundamentals, FetchMeta, MarketDataModule
 from app.schemas.converters import bar_rows_from_dataframe, bars_to_dataframe
-from app.schemas.db import BarRow, CompanyFundamentalsRow, FetchMetaRow
+from app.schemas.db import (
+    BarRow,
+    CompanyFundamentalsRow,
+    FetchMetaRow,
+    MarketDataModuleRow,
+)
 
 
 def _is_sqlite(session: Session) -> bool:
@@ -111,6 +116,81 @@ def upsert_fetch_meta(db: Session, row: FetchMetaRow) -> FetchMeta:
     db.commit()
     db.refresh(meta)
     return meta
+
+
+def get_market_data_module(
+    db: Session, symbol: str, module: str
+) -> MarketDataModule | None:
+    stmt = select(MarketDataModule).where(
+        MarketDataModule.symbol == symbol.upper(),
+        MarketDataModule.module == module,
+    )
+    return db.scalar(stmt)
+
+
+def get_market_data_modules(
+    db: Session, symbol: str, modules: list[str] | None = None
+) -> list[MarketDataModule]:
+    conditions = [MarketDataModule.symbol == symbol.upper()]
+    if modules:
+        conditions.append(MarketDataModule.module.in_(modules))
+    stmt = select(MarketDataModule).where(*conditions).order_by(MarketDataModule.module)
+    return list(db.scalars(stmt).all())
+
+
+def market_data_module_to_schema(
+    row: MarketDataModule | None,
+) -> MarketDataModuleRow | None:
+    if row is None:
+        return None
+    return MarketDataModuleRow(
+        **{
+            column.name: getattr(row, column.name)
+            for column in MarketDataModule.__table__.columns
+            if column.name != "id"
+        }
+    )
+
+
+def upsert_market_data_module(
+    db: Session, row: MarketDataModuleRow
+) -> MarketDataModule:
+    payload = row.to_orm_dict()
+    payload["symbol"] = row.symbol.upper()
+    if _is_sqlite(db):
+        stmt = sqlite_insert(MarketDataModule).values(payload)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["symbol", "module"],
+            set_={
+                "payload_json": stmt.excluded.payload_json,
+                "payload_hash": stmt.excluded.payload_hash,
+                "last_checked_at": stmt.excluded.last_checked_at,
+                "last_changed_at": stmt.excluded.last_changed_at,
+                "fetched_at": stmt.excluded.fetched_at,
+                "next_refresh_at": stmt.excluded.next_refresh_at,
+                "latest_event_date": stmt.excluded.latest_event_date,
+                "source": stmt.excluded.source,
+                "status": stmt.excluded.status,
+            },
+        )
+        db.execute(stmt)
+        db.commit()
+        saved = get_market_data_module(db, row.symbol, row.module)
+        if saved is None:
+            raise ValueError("Market data module upsert failed")
+        return saved
+
+    existing = get_market_data_module(db, row.symbol, row.module)
+    if existing is None:
+        existing = MarketDataModule(**payload)
+        db.add(existing)
+    else:
+        for key, value in payload.items():
+            setattr(existing, key, value)
+
+    db.commit()
+    db.refresh(existing)
+    return existing
 
 
 def get_company_fundamentals(db: Session, symbol: str) -> CompanyFundamentals | None:

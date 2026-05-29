@@ -4,6 +4,7 @@ import type {
   HealthResponse,
   IndexMetricsResponse,
   IndicatorCatalogItem,
+  MarketDataAreaResponse,
   PerformanceBenchmarkOptionsResponse,
   PerformanceComparisonResponse,
   TickerSearchResponse,
@@ -93,6 +94,15 @@ export function searchTickers(keywords: string): Promise<TickerSearchResponse> {
 
 export function fetchCompanyOverview(symbol: string): Promise<CompanyOverview> {
   return apiFetch(`/api/v1/market/overview/${encodeURIComponent(symbol)}`);
+}
+
+export function fetchMarketDataArea(
+  symbol: string,
+  area: string,
+): Promise<MarketDataAreaResponse> {
+  return apiFetch(
+    `/api/v1/market/data/${encodeURIComponent(symbol)}/areas/${encodeURIComponent(area)}`,
+  );
 }
 
 export function fetchHealth(): Promise<HealthResponse> {

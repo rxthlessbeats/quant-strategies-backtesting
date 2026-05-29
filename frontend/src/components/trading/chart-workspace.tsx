@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   fetchChart,
   fetchCompanyOverview,
+  fetchMarketDataArea,
   fetchPerformanceComparison,
 } from "@/lib/api";
 import type { ChartView } from "@/lib/chart-view";
@@ -22,6 +23,7 @@ import {
 import type {
   AnalysisChartResponse,
   CompanyOverview,
+  MarketDataAreaResponse,
   PerformanceComparisonResponse,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -32,8 +34,10 @@ import CompanySummary from "./company-summary";
 import IndicatorSettingsPanel, {
   type SettingsMode,
 } from "./indicator-settings-panel";
+import MarketStatisticsPanel from "./market-statistics-panel";
 import PerformanceComparisonPanel from "./performance-comparison-panel";
 import TradingChart from "./TradingChart";
+import ValuationMetricsPanel from "./valuation-metrics-panel";
 
 type SettingsState =
   | { mode: "add"; id: string; defaultParams: Record<string, number> }
@@ -80,6 +84,13 @@ export default function ChartWorkspace() {
   );
   const [overview, setOverview] = useState<CompanyOverview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
+  const [marketStats, setMarketStats] = useState<MarketDataAreaResponse | null>(
+    null,
+  );
+  const [marketStatements, setMarketStatements] =
+    useState<MarketDataAreaResponse | null>(null);
+  const [marketStatsLoading, setMarketStatsLoading] = useState(false);
+  const [marketStatsError, setMarketStatsError] = useState<string | null>(null);
   const [performance, setPerformance] =
     useState<PerformanceComparisonResponse | null>(null);
   const [performanceBenchmark, setPerformanceBenchmark] = useState("SPY");
@@ -325,6 +336,49 @@ export default function ChartWorkspace() {
   useEffect(() => {
     const sym = symbol.trim().toUpperCase();
     if (!sym) {
+      setMarketStats(null);
+      setMarketStatements(null);
+      setMarketStatsLoading(false);
+      setMarketStatsError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setMarketStatsLoading(true);
+    setMarketStatements(null);
+    setMarketStatsError(null);
+    fetchMarketDataArea(sym, "statistics")
+      .then((data) => {
+        if (cancelled) return;
+        setMarketStats(data);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setMarketStats(null);
+        setMarketStatsError(
+          e instanceof Error ? e.message : "Failed to load market statistics",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setMarketStatsLoading(false);
+      });
+
+    fetchMarketDataArea(sym, "statements")
+      .then((data) => {
+        if (!cancelled) setMarketStatements(data);
+      })
+      .catch(() => {
+        if (!cancelled) setMarketStatements(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol]);
+
+  useEffect(() => {
+    const sym = symbol.trim().toUpperCase();
+    if (!sym) {
       setPerformance(null);
       setPerformanceLoading(false);
       setPerformanceError(null);
@@ -487,6 +541,22 @@ export default function ChartWorkspace() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="flex flex-col gap-3 lg:flex-row">
+          <MarketStatisticsPanel
+            data={marketStats}
+            bars={chartData?.bars ?? []}
+            loading={marketStatsLoading}
+            error={marketStatsError}
+          />
+
+          <ValuationMetricsPanel
+            data={marketStats}
+            statements={marketStatements}
+            loading={marketStatsLoading}
+            error={marketStatsError}
+          />
         </div>
 
         <PerformanceComparisonPanel

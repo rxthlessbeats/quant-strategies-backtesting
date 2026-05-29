@@ -130,3 +130,23 @@ export interface CompanyOverview {
 export interface HealthResponse {
   status: string;
 }
+
+export interface MarketDataModuleItem {
+  symbol: string;
+  module: string;
+  payload: Record<string, unknown>;
+  payload_hash: string;
+  last_checked_at?: string | null;
+  last_changed_at?: string | null;
+  fetched_at?: string | null;
+  next_refresh_at?: string | null;
+  latest_event_date?: string | null;
+  source: string;
+  status?: string | null;
+}
+
+export interface MarketDataAreaResponse {
+  symbol: string;
+  area: string;
+  modules: MarketDataModuleItem[];
+}

@@ -24,6 +24,20 @@ class Settings(BaseSettings):
     backend_root: Path = Field(default=_BACKEND_ROOT)
     data_provider: str = "yahoo"
     alpha_vantage_api_key: str | None = None
+    refresh_scheduler_enabled: bool = False
+    refresh_symbol_universe: str = ""
+    refresh_timezone: str = "America/New_York"
+    refresh_market_close_hour: int = 16
+    refresh_market_close_minute: int = 0
+    earnings_refresh_delay_hours: int = 3
+
+    @property
+    def refresh_symbols(self) -> list[str]:
+        return [
+            symbol.strip().upper()
+            for symbol in self.refresh_symbol_universe.split(",")
+            if symbol.strip()
+        ]
 
     @property
     def is_sqlite(self) -> bool:

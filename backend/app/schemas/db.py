@@ -25,6 +25,23 @@ class FetchMetaRow(BaseModel):
     end_date: str | None = None
 
 
+class MarketDataModuleRow(BaseModel):
+    symbol: str
+    module: str
+    payload_json: dict
+    payload_hash: str
+    last_checked_at: str | None = None
+    last_changed_at: str | None = None
+    fetched_at: str | None = None
+    next_refresh_at: str | None = None
+    latest_event_date: str | None = None
+    source: str = "yahoo"
+    status: str | None = None
+
+    def to_orm_dict(self) -> dict:
+        return self.model_dump()
+
+
 class CompanyFundamentalsRow(BaseModel):
     symbol: str
     asset_type: str | None = None

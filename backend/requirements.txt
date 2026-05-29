@@ -7,3 +7,4 @@ pandas>=2
 numpy>=1.26
 requests>=2.31
 pandas-datareader>=0.10
+apscheduler>=3.10

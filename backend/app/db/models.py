@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Float, Integer, String, UniqueConstraint
+from sqlalchemy import BigInteger, Float, Integer, JSON, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -33,6 +33,28 @@ class FetchMeta(Base):
     fetched_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
     start_date: Mapped[str | None] = mapped_column(String(16), nullable=True)
     end_date: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
+
+class MarketDataModule(Base):
+    __tablename__ = "market_data_modules"
+    __table_args__ = (
+        UniqueConstraint(
+            "symbol", "module", name="uq_market_data_module_symbol_module"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    symbol: Mapped[str] = mapped_column(String(32), index=True)
+    module: Mapped[str] = mapped_column(String(64), index=True)
+    payload_json: Mapped[dict] = mapped_column(JSON)
+    payload_hash: Mapped[str] = mapped_column(String(64), index=True)
+    last_checked_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    last_changed_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    fetched_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    next_refresh_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    latest_event_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    source: Mapped[str] = mapped_column(String(32), default="yahoo")
+    status: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 class CompanyFundamentals(Base):

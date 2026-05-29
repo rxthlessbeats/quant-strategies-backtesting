@@ -73,27 +73,63 @@ class DataDownloader:
         return results
 
     def company_overview(self, symbol: str) -> dict[str, Any]:
-        modules = ",".join(
-            [
-                "assetProfile",
-                "summaryProfile",
-                "defaultKeyStatistics",
-                "financialData",
-                "summaryDetail",
-                "calendarEvents",
-                "price",
-            ]
+        modules = [
+            "assetProfile",
+            "summaryProfile",
+            "defaultKeyStatistics",
+            "financialData",
+            "summaryDetail",
+            "calendarEvents",
+            "price",
+        ]
+        return self._overview_from_quote_summary(
+            symbol, self.quote_summary(symbol, modules)
         )
+
+    def quote_summary(self, symbol: str, modules: list[str]) -> dict[str, Any]:
+        if not modules:
+            return {}
         response = self.session.get(
             f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}",
-            params={"modules": modules, "crumb": self._get_crumb()},
+            params={"modules": ",".join(modules), "crumb": self._get_crumb()},
             timeout=30,
         )
+        if response.status_code in {401, 403}:
+            self._crumb = None
+            response = self.session.get(
+                f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}",
+                params={"modules": ",".join(modules), "crumb": self._get_crumb()},
+                timeout=30,
+            )
         self._raise_for_status(response, "Yahoo quote summary")
         result = response.json().get("quoteSummary", {}).get("result")
         if not result:
-            raise ValueError(f"Yahoo overview data missing for {symbol}")
-        return self._overview_from_quote_summary(symbol, result[0])
+            raise ValueError(f"Yahoo quote summary data missing for {symbol}")
+        return result[0]
+
+    def fundamentals_timeseries(
+        self, symbol: str, types: list[str] | None = None
+    ) -> dict[str, Any]:
+        requested = types or [
+            "quarterlyCashAndCashEquivalents",
+            "quarterlyCashCashEquivalentsAndShortTermInvestments",
+            "quarterlyFreeCashFlow",
+            "quarterlyOperatingCashFlow",
+            "quarterlyCapitalExpenditure",
+        ]
+        now = int(time.time())
+        response = self.session.get(
+            f"https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/{symbol}",
+            params={
+                "symbol": symbol,
+                "type": ",".join(requested),
+                "period1": now - 60 * 60 * 24 * 365 * 3,
+                "period2": now,
+            },
+            timeout=30,
+        )
+        self._raise_for_status(response, "Yahoo fundamentals time series")
+        return response.json()
 
     def _raise_for_status(self, response: requests.Response, source: str) -> None:
         if response.status_code == 429:

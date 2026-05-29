@@ -8,12 +8,20 @@ from fastapi.responses import JSONResponse
 from app.api import analysis_routes, market_routes, stock_routes
 from app.db.database import init_db
 from app.schemas.health import HealthResponse
+from app.services.market_data_scheduler import (
+    start_market_data_scheduler,
+    stop_market_data_scheduler,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    yield
+    start_market_data_scheduler()
+    try:
+        yield
+    finally:
+        stop_market_data_scheduler()
 
 
 app = FastAPI(
