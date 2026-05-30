@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
+from app.db.database import sqlite_write, sqlite_write_lock
 from app.db.models import Bar, CompanyFundamentals, FetchMeta, MarketDataModule
 from app.schemas.converters import bar_rows_from_dataframe, bars_to_dataframe
 from app.schemas.db import (
@@ -17,6 +18,21 @@ from app.schemas.db import (
 
 def _is_sqlite(session: Session) -> bool:
     return session.bind.dialect.name == "sqlite"
+
+
+def commit_session(session: Session) -> None:
+    if _is_sqlite(session):
+        session.commit()
+        return
+    session.commit()
+
+
+def _commit(session: Session) -> None:
+    if _is_sqlite(session):
+        with sqlite_write_lock:
+            commit_session(session)
+        return
+    commit_session(session)
 
 
 def get_bars(
@@ -45,36 +61,39 @@ def upsert_bars(db: Session, rows: list[BarRow]) -> int:
 
     payloads = [row.to_orm_dict() for row in rows]
 
-    if _is_sqlite(db):
-        stmt = sqlite_insert(Bar).values(payloads)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["symbol", "interval", "ts"],
-            set_={
-                "open": stmt.excluded.open,
-                "high": stmt.excluded.high,
-                "low": stmt.excluded.low,
-                "close": stmt.excluded.close,
-                "volume": stmt.excluded.volume,
-                "adj_close": stmt.excluded.adj_close,
-            },
-        )
-        db.execute(stmt)
-    else:
-        for payload in payloads:
-            existing = db.scalar(
-                select(Bar).where(
-                    Bar.symbol == payload["symbol"],
-                    Bar.interval == payload["interval"],
-                    Bar.ts == payload["ts"],
-                )
+    def write() -> None:
+        if _is_sqlite(db):
+            stmt = sqlite_insert(Bar).values(payloads)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["symbol", "interval", "ts"],
+                set_={
+                    "open": stmt.excluded.open,
+                    "high": stmt.excluded.high,
+                    "low": stmt.excluded.low,
+                    "close": stmt.excluded.close,
+                    "volume": stmt.excluded.volume,
+                    "adj_close": stmt.excluded.adj_close,
+                },
             )
-            if existing:
-                for key in ("open", "high", "low", "close", "volume", "adj_close"):
-                    setattr(existing, key, payload[key])
-            else:
-                db.add(Bar(**payload))
+            db.execute(stmt)
+        else:
+            for payload in payloads:
+                existing = db.scalar(
+                    select(Bar).where(
+                        Bar.symbol == payload["symbol"],
+                        Bar.interval == payload["interval"],
+                        Bar.ts == payload["ts"],
+                    )
+                )
+                if existing:
+                    for key in ("open", "high", "low", "close", "volume", "adj_close"):
+                        setattr(existing, key, payload[key])
+                else:
+                    db.add(Bar(**payload))
+        commit_session(db)
 
-    db.commit()
+    with sqlite_write():
+        write()
     return len(rows)
 
 
@@ -113,7 +132,7 @@ def upsert_fetch_meta(db: Session, row: FetchMetaRow) -> FetchMeta:
         meta.fetched_at = now
         meta.start_date = row.start_date
         meta.end_date = row.end_date
-    db.commit()
+    _commit(db)
     db.refresh(meta)
     return meta
 
@@ -153,7 +172,7 @@ def market_data_module_to_schema(
 
 
 def upsert_market_data_module(
-    db: Session, row: MarketDataModuleRow
+    db: Session, row: MarketDataModuleRow, *, commit: bool = True
 ) -> MarketDataModule:
     payload = row.to_orm_dict()
     payload["symbol"] = row.symbol.upper()
@@ -174,7 +193,10 @@ def upsert_market_data_module(
             },
         )
         db.execute(stmt)
-        db.commit()
+        if commit:
+            _commit(db)
+        else:
+            db.flush()
         saved = get_market_data_module(db, row.symbol, row.module)
         if saved is None:
             raise ValueError("Market data module upsert failed")
@@ -188,8 +210,11 @@ def upsert_market_data_module(
         for key, value in payload.items():
             setattr(existing, key, value)
 
-    db.commit()
-    db.refresh(existing)
+    if commit:
+        _commit(db)
+        db.refresh(existing)
+    else:
+        db.flush()
     return existing
 
 
@@ -226,19 +251,23 @@ def upsert_company_fundamentals(
         for key, value in payload.items():
             setattr(fundamentals, key, value)
 
-    db.commit()
-    db.refresh(fundamentals)
+    with sqlite_write():
+        commit_session(db)
+        db.refresh(fundamentals)
     return fundamentals
 
 
 def last_expected_daily_ts() -> int:
-    today = pd.Timestamp.now(tz="UTC").normalize()
-    prev_bday = today - pd.offsets.BDay(1)
-    return int(prev_bday.timestamp())
+    return int(_last_expected_daily_date().timestamp())
 
 
 def _last_expected_daily_date() -> pd.Timestamp:
-    return pd.Timestamp.now(tz="UTC").normalize() - pd.offsets.BDay(1)
+    now = pd.Timestamp.now(tz="America/New_York")
+    today = pd.Timestamp(now.date(), tz="UTC")
+    market_open = now.normalize() + pd.Timedelta(hours=9, minutes=30)
+    if now.dayofweek < 5 and now >= market_open:
+        return today
+    return today - pd.offsets.BDay(1)
 
 
 def is_fresh(db: Session, symbol: str, interval: str) -> bool:

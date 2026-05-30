@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from app.db import crud
+from app.db.database import sqlite_write
 from app.fetch.yahoo import DataDownloader
 from app.schemas.db import MarketDataModuleRow
 from app.schemas.settings import settings
@@ -26,14 +27,15 @@ AREA_MODULES: dict[str, list[str]] = {
     "profile": ["assetProfile", "summaryProfile", "price"],
     "statistics": ["summaryDetail", "defaultKeyStatistics", "financialData"],
     "financial-snapshot": ["calendarEvents", "financialData"],
-    "earnings": ["calendarEvents", "earningsTrend", "earningsHistory"],
+    "earnings": ["calendarEvents", "earnings", "earningsTrend", "earningsHistory"],
     "statements": [
+        "incomeStatementHistory",
         "incomeStatementHistoryQuarterly",
         "balanceSheetHistoryQuarterly",
         "cashflowStatementHistoryQuarterly",
         "fundamentalsTimeSeriesQuarterly",
     ],
-    "analysts": ["recommendationTrend", "upgradeDowngradeHistory"],
+    "analysts": ["recommendationTrend", "upgradeDowngradeHistory", "insights"],
     "ownership": [
         "institutionOwnership",
         "fundOwnership",
@@ -59,7 +61,9 @@ QUARTERLY_MODULES = {
     "majorHoldersBreakdown",
 }
 EVENT_DRIVEN_EARNINGS_MODULES = {
+    "earnings",
     "earningsHistory",
+    "incomeStatementHistory",
     "incomeStatementHistoryQuarterly",
     "balanceSheetHistoryQuarterly",
     "cashflowStatementHistoryQuarterly",
@@ -96,20 +100,42 @@ def ensure_modules(
         timeseries_due = [
             module for module in due if module == "fundamentalsTimeSeriesQuarterly"
         ]
-        quote_due = [module for module in due if module not in timeseries_due]
+        insights_due = [module for module in due if module == "insights"]
+        special_due = set(timeseries_due + insights_due)
+        quote_due = [module for module in due if module not in special_due]
         payload = downloader.quote_summary(normalized, quote_due) if quote_due else {}
         if timeseries_due:
             payload["fundamentalsTimeSeriesQuarterly"] = (
                 downloader.fundamentals_timeseries(normalized)
             )
+        if insights_due:
+            payload["insights"] = downloader.insights(normalized)
         now = datetime.now(timezone.utc)
-        for module in due:
-            module_payload = payload.get(module)
-            if module_payload is None:
-                continue
-            previous = cached.get(module)
-            saved = _save_module(db, normalized, module, module_payload, previous, now)
-            cached[module] = saved
+
+        def persist_modules() -> None:
+            for module in due:
+                module_payload = payload.get(module)
+                if module_payload is None:
+                    continue
+                previous = cached.get(module)
+                saved = _save_module(
+                    db,
+                    normalized,
+                    module,
+                    module_payload,
+                    previous,
+                    now,
+                    commit=False,
+                )
+                cached[module] = saved
+            crud.commit_session(db)
+
+        with sqlite_write():
+            try:
+                persist_modules()
+            except Exception:
+                db.rollback()
+                raise
 
     return [
         _module_response(crud.market_data_module_to_schema(cached[module]))
@@ -138,6 +164,8 @@ def _save_module(
     payload: dict,
     previous,
     now: datetime,
+    *,
+    commit: bool = True,
 ):
     payload_hash = _payload_hash(payload)
     previous_hash = previous.payload_hash if previous is not None else None
@@ -156,7 +184,7 @@ def _save_module(
         source="yahoo",
         status="ok",
     )
-    return crud.upsert_market_data_module(db, row)
+    return crud.upsert_market_data_module(db, row, commit=commit)
 
 
 def _is_module_due(row) -> bool:

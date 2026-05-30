@@ -1,10 +1,12 @@
 "use client";
 
-import type { MarketDataAreaResponse } from "@/lib/types";
+import { formatDailyMarketAsOf } from "@/lib/market-timestamps";
+import type { BarPoint, MarketDataAreaResponse } from "@/lib/types";
 
 interface ValuationMetricsPanelProps {
   data: MarketDataAreaResponse | null;
   statements?: MarketDataAreaResponse | null;
+  bars: BarPoint[];
   loading: boolean;
   error: string | null;
 }
@@ -89,24 +91,6 @@ function formatDate(value: unknown): string | null {
   return formatted === "-" ? null : formatted;
 }
 
-function moduleItems(data: MarketDataAreaResponse | null | undefined) {
-  const modules = data?.modules;
-  return Array.isArray(modules) ? modules : [];
-}
-
-function latestFetchedAt(...sources: Array<MarketDataAreaResponse | null | undefined>) {
-  let latest: string | null = null;
-  for (const source of sources) {
-    for (const item of moduleItems(source)) {
-      if (!item.fetched_at) continue;
-      if (!latest || new Date(item.fetched_at) > new Date(latest)) {
-        latest = item.fetched_at;
-      }
-    }
-  }
-  return latest;
-}
-
 function formatMetricValue(row: MetricRowData): string {
   return typeof row.value === "string" ? row.value : formattedValue(row.value);
 }
@@ -175,6 +159,11 @@ function trailingTwelveMonthFreeCashFlow(data: MarketDataAreaResponse | null) {
   return trailingSeriesValue(data, "quarterlyFreeCashFlow", 4);
 }
 
+function latestBarTimestamp(bars: BarPoint[] | null | undefined): number | null {
+  if (!Array.isArray(bars) || bars.length === 0) return null;
+  return bars[bars.length - 1]?.timestamp ?? null;
+}
+
 function MetricRow({
   label,
   value,
@@ -213,6 +202,7 @@ function FeaturedMetric({ label, value }: { label: string; value: string }) {
 export default function ValuationMetricsPanel({
   data,
   statements,
+  bars = [],
   loading,
   error,
 }: ValuationMetricsPanelProps) {
@@ -233,11 +223,17 @@ export default function ValuationMetricsPanel({
   const payoutRatio =
     detail?.payoutRatio ?? stats?.payoutRatio ?? financial?.payoutRatio;
   const exDividendDate = formatDate(detail?.exDividendDate);
-  const updatedAt = latestFetchedAt(data, statements);
+  const updatedAt = formatDailyMarketAsOf(latestBarTimestamp(bars));
   const hasDividendYield = hasPercentMetric(dividendYield);
   const hasPayoutRatio = hasPercentMetric(payoutRatio);
 
   const rows: MetricRowData[] = [
+    { label: "EPS", value: stats?.trailingEps ?? stats?.forwardEps },
+    { label: "Beta", value: detail?.beta ?? stats?.beta },
+    {
+      label: "Return on Equity",
+      value: percentOrDash(financial?.returnOnEquity),
+    },
     { label: "Trailing P/E", value: detail?.trailingPE ?? stats?.trailingPE },
     { label: "Forward P/E", value: detail?.forwardPE ?? stats?.forwardPE },
     { label: "PEG ratio", value: stats?.pegRatio },
@@ -277,7 +273,7 @@ export default function ValuationMetricsPanel({
         </h2>
         {updatedAt && (
           <span className="text-xs text-muted-foreground">
-            Updated {new Date(updatedAt).toLocaleDateString()}
+            Updated {updatedAt}
           </span>
         )}
       </div>

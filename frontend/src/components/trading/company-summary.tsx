@@ -1,7 +1,7 @@
 "use client";
 
-import { format } from "date-fns";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { formatDailyMarketAsOf } from "@/lib/market-timestamps";
 import type { LatestQuote } from "@/lib/quote-from-bars";
 import type { CompanyOverview } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -73,6 +73,7 @@ export default function CompanySummary({
 }: CompanySummaryProps) {
   const showHeader =
     overviewLoading || overview !== null || quoteLoading || quote !== null;
+  const quoteAsOf = formatDailyMarketAsOf(quote?.asOf);
 
   if (!showHeader) {
     return null;
@@ -140,8 +141,8 @@ export default function CompanySummary({
       <div className="justify-self-end text-right text-sm text-muted-foreground">
         {quoteLoading ? (
           <div className="ml-auto h-5 w-40 animate-pulse rounded bg-muted" />
-        ) : quote ? (
-          `As of ${format(quote.asOf * 1000, "MMM d, yyyy h:mm a")}`
+        ) : quoteAsOf ? (
+          `As of ${quoteAsOf}`
         ) : null}
       </div>
     </div>

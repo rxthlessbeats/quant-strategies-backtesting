@@ -31,7 +31,9 @@ MONTHLY_MODULES = [
 ]
 EARNINGS_MODULES = [
     "financialData",
+    "earnings",
     "earningsHistory",
+    "incomeStatementHistory",
     "incomeStatementHistoryQuarterly",
     "balanceSheetHistoryQuarterly",
     "cashflowStatementHistoryQuarterly",
@@ -61,6 +63,8 @@ def start_market_data_scheduler() -> None:
         args=[ANALYST_MODULES],
         id="market-data-analysts-daily",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.add_job(
         _refresh_modules,
@@ -72,6 +76,8 @@ def start_market_data_scheduler() -> None:
         args=[WEEKLY_MODULES],
         id="market-data-weekly",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.add_job(
         _refresh_modules,
@@ -83,6 +89,8 @@ def start_market_data_scheduler() -> None:
         args=[MONTHLY_MODULES],
         id="market-data-monthly",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.add_job(
         _refresh_modules,
@@ -94,6 +102,8 @@ def start_market_data_scheduler() -> None:
         args=[EARNINGS_MODULES],
         id="market-data-earnings-window",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.start()
     _scheduler = scheduler

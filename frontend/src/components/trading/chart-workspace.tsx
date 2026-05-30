@@ -27,6 +27,7 @@ import type {
   PerformanceComparisonResponse,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import AnalystRecommendationsPanel from "./analyst-recommendations-panel";
 import ChartLegend from "./chart-legend";
 import ChartToolbar from "./chart-toolbar";
 import CompanyStatsPanel from "./company-stats-panel";
@@ -89,8 +90,15 @@ export default function ChartWorkspace() {
   );
   const [marketStatements, setMarketStatements] =
     useState<MarketDataAreaResponse | null>(null);
+  const [marketEarnings, setMarketEarnings] =
+    useState<MarketDataAreaResponse | null>(null);
   const [marketStatsLoading, setMarketStatsLoading] = useState(false);
   const [marketStatsError, setMarketStatsError] = useState<string | null>(null);
+  const [analystData, setAnalystData] = useState<MarketDataAreaResponse | null>(
+    null,
+  );
+  const [analystLoading, setAnalystLoading] = useState(false);
+  const [analystError, setAnalystError] = useState<string | null>(null);
   const [performance, setPerformance] =
     useState<PerformanceComparisonResponse | null>(null);
   const [performanceBenchmark, setPerformanceBenchmark] = useState("SPY");
@@ -336,8 +344,41 @@ export default function ChartWorkspace() {
   useEffect(() => {
     const sym = symbol.trim().toUpperCase();
     if (!sym) {
+      setAnalystData(null);
+      setAnalystLoading(false);
+      setAnalystError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setAnalystLoading(true);
+    setAnalystError(null);
+    fetchMarketDataArea(sym, "analysts")
+      .then((data) => {
+        if (!cancelled) setAnalystData(data);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setAnalystData(null);
+        setAnalystError(
+          e instanceof Error ? e.message : "Failed to load analyst data",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setAnalystLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol]);
+
+  useEffect(() => {
+    const sym = symbol.trim().toUpperCase();
+    if (!sym) {
       setMarketStats(null);
       setMarketStatements(null);
+      setMarketEarnings(null);
       setMarketStatsLoading(false);
       setMarketStatsError(null);
       return;
@@ -346,6 +387,7 @@ export default function ChartWorkspace() {
     let cancelled = false;
     setMarketStatsLoading(true);
     setMarketStatements(null);
+    setMarketEarnings(null);
     setMarketStatsError(null);
     fetchMarketDataArea(sym, "statistics")
       .then((data) => {
@@ -369,6 +411,14 @@ export default function ChartWorkspace() {
       })
       .catch(() => {
         if (!cancelled) setMarketStatements(null);
+      });
+
+    fetchMarketDataArea(sym, "earnings")
+      .then((data) => {
+        if (!cancelled) setMarketEarnings(data);
+      })
+      .catch(() => {
+        if (!cancelled) setMarketEarnings(null);
       });
 
     return () => {
@@ -554,6 +604,7 @@ export default function ChartWorkspace() {
           <ValuationMetricsPanel
             data={marketStats}
             statements={marketStatements}
+            bars={chartData?.bars ?? []}
             loading={marketStatsLoading}
             error={marketStatsError}
           />
@@ -567,7 +618,21 @@ export default function ChartWorkspace() {
           onBenchmarkChange={setPerformanceBenchmark}
         />
 
-        <CompanyStatsPanel overview={overview} loading={overviewLoading} />
+        <AnalystRecommendationsPanel
+          data={analystData}
+          marketStats={marketStats}
+          bars={chartData?.bars ?? []}
+          loading={analystLoading}
+          error={analystError}
+        />
+
+        <CompanyStatsPanel
+          overview={overview}
+          data={marketStats}
+          statements={marketStatements}
+          earnings={marketEarnings}
+          loading={overviewLoading || marketStatsLoading}
+        />
       </div>
 
       <IndicatorSettingsPanel

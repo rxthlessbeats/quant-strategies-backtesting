@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDailyMarketAsOf } from "@/lib/market-timestamps";
 import type { BarPoint, MarketDataAreaResponse } from "@/lib/types";
 
 interface MarketStatisticsPanelProps {
@@ -277,6 +278,7 @@ export default function MarketStatisticsPanel({
   const volumeHigh = volumeStats?.high ?? null;
   const volumeAverage = volumeStats?.average ?? yahooAverageVolume;
   const volumeToday = volumeStats?.today ?? yahooTodayVolume;
+  const updatedAt = formatDailyMarketAsOf(barRange?.latestDate);
 
   return (
     <section className="w-full overflow-hidden rounded-lg border border-border bg-black/40 backdrop-blur-md lg:flex-1">
@@ -291,9 +293,9 @@ export default function MarketStatisticsPanel({
           </p>
           */}
         </div>
-        {data?.modules[0]?.fetched_at && (
+        {updatedAt && (
           <span className="text-xs text-muted-foreground">
-            Updated {new Date(data.modules[0].fetched_at).toLocaleDateString()}
+            Updated {updatedAt}
           </span>
         )}
       </div>

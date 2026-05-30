@@ -113,6 +113,9 @@ class DataDownloader:
         requested = types or [
             "quarterlyCashAndCashEquivalents",
             "quarterlyCashCashEquivalentsAndShortTermInvestments",
+            "quarterlyTotalDebt",
+            "annualCashAndCashEquivalents",
+            "annualTotalDebt",
             "quarterlyFreeCashFlow",
             "quarterlyOperatingCashFlow",
             "quarterlyCapitalExpenditure",
@@ -129,6 +132,15 @@ class DataDownloader:
             timeout=30,
         )
         self._raise_for_status(response, "Yahoo fundamentals time series")
+        return response.json()
+
+    def insights(self, symbol: str) -> dict[str, Any]:
+        response = self.session.get(
+            "https://query1.finance.yahoo.com/ws/insights/v1/finance/insights",
+            params={"symbol": symbol},
+            timeout=30,
+        )
+        self._raise_for_status(response, "Yahoo insights")
         return response.json()
 
     def _raise_for_status(self, response: requests.Response, source: str) -> None:
@@ -231,7 +243,14 @@ class DataDownloader:
         interval: str = "1d",
     ) -> pd.DataFrame:
         start_timestamp = self._timestamp(start_date)
-        end_timestamp = self._timestamp(end_date)
+        effective_end_date = (
+            (datetime.strptime(end_date, "%Y-%m-%d") + pd.Timedelta(days=1)).strftime(
+                "%Y-%m-%d"
+            )
+            if "d" in interval
+            else end_date
+        )
+        end_timestamp = self._timestamp(effective_end_date)
 
         url = (
             f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
@@ -248,6 +267,8 @@ class DataDownloader:
 
         parsed = YahooChartResponse.model_validate(response.json())
         chart = parsed.first_result()
+        if not chart.timestamp:
+            return pd.DataFrame()
         quote = chart.indicators.quote[0]
         date = pd.to_datetime(chart.timestamp, unit="s")
 
@@ -299,6 +320,8 @@ class DataDownloader:
 
         parsed = YahooChartResponse.model_validate(response.json())
         chart = parsed.first_result()
+        if not chart.timestamp:
+            return pd.DataFrame()
         quote = chart.indicators.quote[0]
         date = pd.to_datetime(chart.timestamp, unit="s")
 

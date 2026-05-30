@@ -21,7 +21,7 @@ class YahooIndicators(BaseModel):
 
 
 class YahooChartResult(BaseModel):
-    timestamp: list[int]
+    timestamp: list[int] = Field(default_factory=list)
     indicators: YahooIndicators
 
 

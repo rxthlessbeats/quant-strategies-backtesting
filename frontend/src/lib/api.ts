@@ -99,9 +99,11 @@ export function fetchCompanyOverview(symbol: string): Promise<CompanyOverview> {
 export function fetchMarketDataArea(
   symbol: string,
   area: string,
+  options?: { force?: boolean },
 ): Promise<MarketDataAreaResponse> {
+  const query = options?.force ? "?force=true" : "";
   return apiFetch(
-    `/api/v1/market/data/${encodeURIComponent(symbol)}/areas/${encodeURIComponent(area)}`,
+    `/api/v1/market/data/${encodeURIComponent(symbol)}/areas/${encodeURIComponent(area)}${query}`,
   );
 }
 
