@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   CandlestickSeries,
   ColorType,
@@ -91,6 +91,48 @@ export default function TradingChart({
 }: TradingChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const candleData = useMemo(() => toCandlestickData(data.bars), [data.bars]);
+  const volumeData = useMemo(() => toVolumeData(data.bars), [data.bars]);
+  const indicatorKeys = useMemo(
+    () => Object.keys(data.indicators),
+    [data.indicators],
+  );
+  const rsiKeys = useMemo(() => indicatorKeys.filter(isRsiKey), [indicatorKeys]);
+  const macdKeys = useMemo(
+    () => indicatorKeys.filter(isMacdKey),
+    [indicatorKeys],
+  );
+  const priceKeys = useMemo(
+    () => indicatorKeys.filter((key) => !isRsiKey(key) && !isMacdKey(key)),
+    [indicatorKeys],
+  );
+  const indicatorLineData = useMemo(
+    () =>
+      Object.fromEntries(
+        indicatorKeys.map((key) => [
+          key,
+          toIndicatorLineData(data.bars, data.indicators[key] ?? []),
+        ]),
+      ),
+    [data.bars, data.indicators, indicatorKeys],
+  );
+  const indicatorHistogramData = useMemo(
+    () =>
+      Object.fromEntries(
+        indicatorKeys.map((key) => [
+          key,
+          toIndicatorHistogramData(data.bars, data.indicators[key] ?? []),
+        ]),
+      ),
+    [data.bars, data.indicators, indicatorKeys],
+  );
+  const rsiGuideData = useMemo(
+    () => ({
+      70: constantLineData(data, 70),
+      30: constantLineData(data, 30),
+    }),
+    [data],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -124,7 +166,7 @@ export default function TradingChart({
       wickUpColor: "#26a69a",
       wickDownColor: "#ef5350",
     });
-    candleSeries.setData(toCandlestickData(data.bars));
+    candleSeries.setData(candleData);
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
@@ -133,14 +175,8 @@ export default function TradingChart({
     chart.priceScale("volume").applyOptions({
       scaleMargins: { top: 0.85, bottom: 0 },
     });
-    volumeSeries.setData(toVolumeData(data.bars));
+    volumeSeries.setData(volumeData);
 
-    const indicatorKeys = Object.keys(data.indicators);
-    const rsiKeys = indicatorKeys.filter(isRsiKey);
-    const macdKeys = indicatorKeys.filter(isMacdKey);
-    const priceKeys = indicatorKeys.filter(
-      (key) => !isRsiKey(key) && !isMacdKey(key),
-    );
     let nextPaneIndex = 1;
     const rsiPaneIndex = rsiKeys.length > 0 ? nextPaneIndex++ : null;
     const macdPaneIndex = macdKeys.length > 0 ? nextPaneIndex++ : null;
@@ -153,9 +189,7 @@ export default function TradingChart({
         lastValueVisible: true,
         priceLineVisible: false,
       });
-      lineSeries.setData(
-        toIndicatorLineData(data.bars, data.indicators[key] ?? []),
-      );
+      lineSeries.setData(indicatorLineData[key] ?? []);
     });
 
     if (rsiPaneIndex !== null) {
@@ -171,9 +205,7 @@ export default function TradingChart({
           },
           rsiPaneIndex,
         );
-        lineSeries.setData(
-          toIndicatorLineData(data.bars, data.indicators[key] ?? []),
-        );
+        lineSeries.setData(indicatorLineData[key] ?? []);
       });
 
       [70, 30].forEach((level) => {
@@ -188,7 +220,7 @@ export default function TradingChart({
           },
           rsiPaneIndex,
         );
-        guideSeries.setData(constantLineData(data, level));
+        guideSeries.setData(rsiGuideData[level as 70 | 30]);
       });
     }
 
@@ -204,9 +236,7 @@ export default function TradingChart({
             },
             macdPaneIndex,
           );
-          histSeries.setData(
-            toIndicatorHistogramData(data.bars, data.indicators[key] ?? []),
-          );
+          histSeries.setData(indicatorHistogramData[key] ?? []);
           return;
         }
 
@@ -221,15 +251,8 @@ export default function TradingChart({
           },
           macdPaneIndex,
         );
-        lineSeries.setData(
-          toIndicatorLineData(data.bars, data.indicators[key] ?? []),
-        );
+        lineSeries.setData(indicatorLineData[key] ?? []);
       });
-    }
-
-    const visibleRange = visibleRangeForView(data, selectedView);
-    if (visibleRange) {
-      chart.timeScale().setVisibleRange(visibleRange);
     }
 
     const resizeObserver = new ResizeObserver((entries) => {
@@ -246,7 +269,29 @@ export default function TradingChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [data, colorMap, selectedView, height]);
+  }, [
+    data.bars.length,
+    candleData,
+    colorMap,
+    height,
+    indicatorHistogramData,
+    indicatorLineData,
+    macdKeys,
+    priceKeys,
+    rsiGuideData,
+    rsiKeys,
+    volumeData,
+  ]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || data.bars.length === 0) return;
+
+    const visibleRange = visibleRangeForView(data, selectedView);
+    if (visibleRange) {
+      chart.timeScale().setVisibleRange(visibleRange);
+    }
+  }, [data, selectedView]);
 
   if (data.bars.length === 0) {
     return (

@@ -113,7 +113,11 @@ export default function ChartToolbar({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => onViewChange(view)}
+            onClick={() => {
+              if (selectedView !== view) {
+                onViewChange(view);
+              }
+            }}
             className={cn(
               "h-7 px-2 text-[11px] text-slate-400",
               selectedView === view && "bg-white/10 text-slate-100",

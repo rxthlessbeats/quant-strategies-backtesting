@@ -2,6 +2,7 @@
 
 import { VChart } from "@visactor/react-vchart";
 import type { IBarChartSpec } from "@visactor/vchart";
+import { useMemo } from "react";
 import type { BarPoint, MarketDataAreaResponse } from "@/lib/types";
 
 interface AnalystRecommendationsPanelProps {
@@ -244,9 +245,12 @@ export default function AnalystRecommendationsPanel({
   loading,
   error,
 }: AnalystRecommendationsPanelProps) {
-  const trends = trendItems(data);
-  const history = historyItems(data).slice(0, 8);
-  const targets = targetMetrics(marketStats, bars);
+  const trends = useMemo(() => trendItems(data), [data]);
+  const history = useMemo(() => historyItems(data).slice(0, 8), [data]);
+  const targets = useMemo(
+    () => targetMetrics(marketStats, bars),
+    [marketStats, bars],
+  );
   const hasTargetChart = Object.values(targets).some((value) => value != null);
 
   return (
@@ -344,15 +348,19 @@ function TargetPriceRange({ targets }: { targets: TargetMetrics }) {
 }
 
 function RecommendationStackedBar({ trends }: { trends: TrendItem[] }) {
-  const values = trends.flatMap((item) =>
-    STACKED_RECOMMENDATION_BUCKETS.map((bucket) => ({
-      period: periodLabel(item.period),
-      type: bucket.label,
-      count: bucketValue(item, bucket.key),
-    })),
+  const values = useMemo(
+    () =>
+      trends.flatMap((item) =>
+        STACKED_RECOMMENDATION_BUCKETS.map((bucket) => ({
+          period: periodLabel(item.period),
+          type: bucket.label,
+          count: bucketValue(item, bucket.key),
+        })),
+      ),
+    [trends],
   );
 
-  const spec: IBarChartSpec = {
+  const spec = useMemo<IBarChartSpec>(() => ({
     type: "bar",
     data: [
       {
@@ -410,7 +418,7 @@ function RecommendationStackedBar({ trends }: { trends: TrendItem[] }) {
         cornerRadius: [4, 4, 0, 0],
       },
     },
-  };
+  }), [values]);
 
   return (
     <div className="rounded-md border border-white/10 p-3">

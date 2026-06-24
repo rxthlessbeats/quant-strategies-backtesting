@@ -2,7 +2,7 @@
 
 import { VChart } from "@visactor/react-vchart";
 import type { IBarChartSpec } from "@visactor/vchart";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { CompanyOverview, MarketDataAreaResponse } from "@/lib/types";
 
 interface CompanyStatsPanelProps {
@@ -38,25 +38,33 @@ export default function CompanyStatsPanel({
   const [earningsView, setEarningsView] = useState<"quarterly" | "yearly">(
     "quarterly",
   );
-  const sections = buildFinancialSections(overview, data);
-  const chartRows = buildEarningsTrendChartRows(
-    earnings,
-    data,
-    overview,
-    earningsView,
+  const sections = useMemo(
+    () => buildFinancialSections(overview, data),
+    [overview, data],
   );
-  const revenueEarningsRows = buildRevenueEarningsChartRows(
-    statements,
-    earningsView,
+  const chartRows = useMemo(
+    () => buildEarningsTrendChartRows(earnings, data, overview, earningsView),
+    [earnings, data, overview, earningsView],
   );
-  const growthSummary = buildEarningsGrowthSummary(
-    earnings,
-    statements,
-    data,
-    overview,
-    earningsView,
+  const revenueEarningsRows = useMemo(
+    () => buildRevenueEarningsChartRows(statements, earningsView),
+    [statements, earningsView],
   );
-  const cashDebtRows = buildCashDebtChartRows(statements, data, earningsView);
+  const growthSummary = useMemo(
+    () =>
+      buildEarningsGrowthSummary(
+        earnings,
+        statements,
+        data,
+        overview,
+        earningsView,
+      ),
+    [earnings, statements, data, overview, earningsView],
+  );
+  const cashDebtRows = useMemo(
+    () => buildCashDebtChartRows(statements, data, earningsView),
+    [statements, data, earningsView],
+  );
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
@@ -106,7 +114,11 @@ export default function CompanyStatsPanel({
               <button
                 key={view}
                 type="button"
-                onClick={() => setEarningsView(view)}
+                onClick={() => {
+                  if (earningsView !== view) {
+                    setEarningsView(view);
+                  }
+                }}
                 className={`rounded px-2 py-1 capitalize ${
                   earningsView === view
                     ? "bg-white/10 text-slate-100"
@@ -248,7 +260,7 @@ function GrowthCell({ value }: { value: string }) {
 }
 
 function EarningsTrendChart({ rows }: { rows: EarningsTrendChartRow[] }) {
-  const spec: IBarChartSpec = {
+  const spec = useMemo<IBarChartSpec>(() => ({
     type: "bar",
     data: [
       {
@@ -315,7 +327,7 @@ function EarningsTrendChart({ rows }: { rows: EarningsTrendChartRow[] }) {
         cornerRadius: [4, 4, 0, 0],
       },
     },
-  };
+  }), [rows]);
 
   return (
     <div className="h-60">
@@ -325,7 +337,7 @@ function EarningsTrendChart({ rows }: { rows: EarningsTrendChartRow[] }) {
 }
 
 function CashDebtChart({ rows }: { rows: CashDebtChartRow[] }) {
-  const spec: IBarChartSpec = {
+  const spec = useMemo<IBarChartSpec>(() => ({
     type: "bar",
     data: [
       {
@@ -392,7 +404,7 @@ function CashDebtChart({ rows }: { rows: CashDebtChartRow[] }) {
         cornerRadius: [4, 4, 0, 0],
       },
     },
-  };
+  }), [rows]);
 
   return (
     <div className="h-60">
@@ -402,7 +414,7 @@ function CashDebtChart({ rows }: { rows: CashDebtChartRow[] }) {
 }
 
 function RevenueEarningsChart({ rows }: { rows: RevenueEarningsChartRow[] }) {
-  const spec: IBarChartSpec = {
+  const spec = useMemo<IBarChartSpec>(() => ({
     type: "bar",
     data: [
       {
@@ -469,7 +481,7 @@ function RevenueEarningsChart({ rows }: { rows: RevenueEarningsChartRow[] }) {
         cornerRadius: [4, 4, 0, 0],
       },
     },
-  };
+  }), [rows]);
 
   return (
     <div className="h-60">
