@@ -1,0 +1,28 @@
+---
+description: Enforce wiki ops policy only during explicit wiki skill runs.
+alwaysApply: false
+---
+
+# Wiki Ops Enforcement
+
+Apply this rule only when the user explicitly invokes one of:
+- `/wiki-ingest`
+- `/wiki-query`
+- `/wiki-lint`
+
+Outside those skill runs, do not enforce this rule.
+
+During those wiki skill operations:
+
+- Start from `wiki/index.md` and use wiki-first reasoning before broad code exploration.
+- Choose the operation skill explicitly:
+  - `/wiki-ingest` for adding/updating durable knowledge.
+  - `/wiki-query` for answering questions from wiki + code verification.
+  - `/wiki-lint` for quality and drift checks.
+- For ingest/lint and any query that edits wiki content, always update:
+  - `wiki/index.md` when page structure changes.
+  - `wiki/log.md` with an operation entry.
+- Claims about behavior must be backed by repository code paths and/or runtime evidence.
+- README-only claims are not sufficient unless verified against current code.
+- Prefer updating canonical pages over creating duplicate topic pages.
+- If evidence is incomplete or conflicting, record explicit uncertainty in the affected page.
