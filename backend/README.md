@@ -22,21 +22,28 @@ backend/
 └── Dockerfile
 ```
 
-## Setup (Mamba / conda)
+## Setup (uv)
 
-```cmd
-conda activate quant
-cd backend
+From the repo root (not this folder):
 
-mamba install -y fastapi uvicorn sqlalchemy pydantic pydantic-settings pandas numpy requests pandas-datareader
-pip install -r requirements.txt
+```sh
+uv sync
 ```
+
+`requirements.txt` is an export of the lockfile for Docker.
 
 ## Run API
 
-```cmd
-cd backend
-uvicorn app.main:app --reload
+Whole stack from repo root:
+
+```sh
+uv run start
+```
+
+API only:
+
+```sh
+uv run --project . --directory backend python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Open http://127.0.0.1:8000/docs

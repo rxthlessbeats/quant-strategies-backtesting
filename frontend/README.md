@@ -38,14 +38,7 @@ copy .env.example .env.local
 
 ## Run
 
-Start the FastAPI backend first (see [../backend/README.md](../backend/README.md)):
-
-```cmd
-cd backend
-uvicorn app.main:app --reload
-```
-
-Then the frontend:
+Prefer the repo-root command `uv run start`. Frontend only:
 
 ```cmd
 cd frontend

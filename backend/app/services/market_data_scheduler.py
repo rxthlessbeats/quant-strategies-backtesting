@@ -1,3 +1,4 @@
+import os
 from collections.abc import Iterable
 
 from app.db.database import SessionLocal
@@ -45,6 +46,8 @@ _scheduler = None
 
 def start_market_data_scheduler() -> None:
     global _scheduler
+    if os.environ.get("VERCEL"):
+        return
     if not settings.refresh_scheduler_enabled or not settings.refresh_symbols:
         return
     if BackgroundScheduler is None or CronTrigger is None:

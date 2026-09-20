@@ -118,3 +118,24 @@ Where `<operation>` is one of: `ingest`, `query`, `lint`, `seed`, `pilot`.
 
 ### Contradictions / uncertainty
 - Ingest scope inferred from recent wiki migration work; no explicit file/diff scope was provided in the user request.
+
+## [2026-09-19] ingest | uv start command and Vercel branches
+
+### Summary
+- Canonical local start is now `uv run start` (FastAPI + Next.js).
+- Python deps live in root `pyproject.toml` / `uv.lock`.
+- Vercel is frontend-only: `main` production, `dev` preview.
+
+### Pages touched
+- `wiki/pages/runbook-local-dev.md`
+- `wiki/log.md`
+
+## [2026-09-19] ingest | Vercel FastAPI backend project
+
+### Summary
+- FastAPI can deploy as a second Vercel project with Root Directory `backend/`.
+- Vercel uses `/tmp` SQLite and skips APScheduler.
+
+### Pages touched
+- `wiki/pages/runbook-local-dev.md`
+- `wiki/log.md`

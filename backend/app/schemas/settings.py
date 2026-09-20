@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -8,7 +9,12 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _default_database_url() -> str:
-    data_dir = _BACKEND_ROOT / "data"
+    # Vercel Functions only persist writes under /tmp (ephemeral per instance).
+    data_dir = (
+        Path("/tmp/trading-rookie")
+        if os.environ.get("VERCEL")
+        else _BACKEND_ROOT / "data"
+    )
     data_dir.mkdir(parents=True, exist_ok=True)
     return f"sqlite:///{(data_dir / 'stock_data.db').as_posix()}"
 
