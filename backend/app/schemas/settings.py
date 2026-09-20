@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     backend_root: Path = Field(default=_BACKEND_ROOT)
     data_provider: str = "yahoo"
     alpha_vantage_api_key: str | None = None
+    api_secret: str = ""
     refresh_scheduler_enabled: bool = False
     refresh_symbol_universe: str = ""
     refresh_timezone: str = "America/New_York"

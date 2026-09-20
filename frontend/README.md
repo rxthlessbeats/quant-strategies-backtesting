@@ -60,4 +60,5 @@ Open http://localhost:3000
 
 | Variable | Default |
 |----------|---------|
-| `NEXT_PUBLIC_API_URL` | `http://127.0.0.1:8000` |
+| `API_URL` | FastAPI origin (`http://127.0.0.1:8000` locally). Server-only. |
+| `API_SECRET` | Shared with the backend. Server-only; never `NEXT_PUBLIC_`. |

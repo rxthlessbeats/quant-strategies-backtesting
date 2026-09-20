@@ -42,25 +42,12 @@ export default async function HealthPage() {
           </div>
           <dl className="space-y-2 text-sm">
             <div>
-              <dt className="text-muted-foreground">Base URL</dt>
+              <dt className="text-muted-foreground">Public API path</dt>
               <dd className="font-mono">{apiBase}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Health endpoint</dt>
               <dd className="font-mono">{apiBase}/health</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">OpenAPI docs</dt>
-              <dd>
-                <a
-                  href={`${apiBase}/docs`}
-                  className="font-mono underline hover:text-foreground"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {apiBase}/docs
-                </a>
-              </dd>
             </div>
           </dl>
         </div>

@@ -5,7 +5,8 @@
 - Backend-only command is `uv run --project . --directory backend python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`.
 - Frontend-only command is `npm run dev` from `frontend/`.
 - Python deps are locked in root `uv.lock` / `pyproject.toml`; Node deps stay on `frontend/package-lock.json`.
-- Frontend API base defaults to `http://127.0.0.1:8000` when env var is absent.
+- Frontend API calls go through same-origin `/api/backend`; FastAPI requires `X-API-Key` (`API_SECRET`).
+- Frontend API base for the browser is `/api/backend`. Server components call `API_URL` with the secret.
 - Backend defaults to SQLite DB at `backend/data/stock_data.db` when `DATABASE_URL` is unset.
 - Alpha Vantage mode requires API key; provider choice is env-configured.
 - Vercel can host both apps as two projects: Next.js Root Directory `frontend/`, FastAPI Root Directory `backend/` (`main` = production, `dev` = preview).
@@ -13,7 +14,8 @@
 
 ## Evidence
 - Frontend scripts: `frontend/package.json`.
-- Frontend API base handling: `frontend/src/lib/api.ts`, `frontend/.env.example`.
+- Frontend API client and proxy: `frontend/src/lib/api.ts`, `frontend/src/app/api/backend/[...path]/route.ts`.
+- API key gate: `backend/app/api/auth.py`.
 - Backend app entrypoint: `backend/app/main.py`.
 - Backend settings/env: `backend/app/schemas/settings.py`.
 - Provider switch and key requirement: `backend/app/fetch/downloader.py`, `backend/app/fetch/alpha_vantage.py`.

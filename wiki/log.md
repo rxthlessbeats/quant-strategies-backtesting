@@ -139,3 +139,13 @@ Where `<operation>` is one of: `ingest`, `query`, `lint`, `seed`, `pilot`.
 ### Pages touched
 - `wiki/pages/runbook-local-dev.md`
 - `wiki/log.md`
+
+## [2026-09-19] ingest | FastAPI API_SECRET gate
+
+### Summary
+- FastAPI requires `X-API-Key` except `/health`.
+- Next.js proxies browser calls via `/api/backend` so the secret stays server-side.
+
+### Pages touched
+- `wiki/pages/runbook-local-dev.md`
+- `wiki/log.md`

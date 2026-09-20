@@ -10,16 +10,30 @@ import type {
   TickerSearchResponse,
 } from "@/lib/types";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
-  "http://127.0.0.1:8000";
+const BACKEND_URL = (
+  process.env.API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://127.0.0.1:8000"
+).replace(/\/$/, "");
 
 export function getApiBaseUrl(): string {
-  return API_BASE;
+  return "/api/backend";
+}
+
+function fetchTarget(path: string): { url: string; headers: HeadersInit } {
+  if (typeof window === "undefined") {
+    const headers: HeadersInit = {};
+    if (process.env.API_SECRET) {
+      headers["X-API-Key"] = process.env.API_SECRET;
+    }
+    return { url: `${BACKEND_URL}${path}`, headers };
+  }
+  return { url: `/api/backend${path}`, headers: {} };
 }
 
 async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  const { url, headers } = fetchTarget(path);
+  const res = await fetch(url, { cache: "no-store", headers });
   if (!res.ok) {
     let detail = res.statusText;
     try {

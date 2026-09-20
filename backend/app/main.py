@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import analysis_routes, market_routes, stock_routes
+from app.api.auth import require_api_key
 from app.db.database import init_db
 from app.schemas.health import HealthResponse
 from app.services.market_data_scheduler import (
@@ -33,11 +34,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["X-API-Key", "Content-Type"],
 )
+app.middleware("http")(require_api_key)
 
 
 @app.exception_handler(RequestValidationError)

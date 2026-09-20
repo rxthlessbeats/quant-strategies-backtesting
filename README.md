@@ -28,10 +28,12 @@ Use **two Vercel projects** from this repo (`main` = production, `dev` = preview
 
 | Project | Root Directory | Env |
 | --- | --- | --- |
-| Frontend (Next.js) | `frontend` | `NEXT_PUBLIC_API_URL` = backend project URL |
-| Backend (FastAPI) | `backend` | optional `DATA_PROVIDER`, `ALPHA_VANTAGE_API_KEY`, `DATABASE_URL` |
+| Frontend (Next.js) | `frontend` | `API_URL` = backend project URL; `API_SECRET` = same random string as backend |
+| Backend (FastAPI) | `backend` | `API_SECRET` (required); optional `DATA_PROVIDER`, `ALPHA_VANTAGE_API_KEY`, `DATABASE_URL` |
 
-The API is a Vercel Function (`backend/app/main.py`). Default SQLite on Vercel lives in `/tmp` (cache only; it is not shared across instances). Yahoo/Alpha Vantage still fill data on request. In-process APScheduler does not run on Vercel.
+Do **not** use `NEXT_PUBLIC_` for the secret. The browser only calls same-origin `/api/backend/...`; Next.js attaches `X-API-Key` server-side. Direct calls to the FastAPI URL without that header get 401.
+
+The API is a Vercel Function (`backend/app/main.py`). Default SQLite on Vercel lives in `/tmp` (cache only; it is not shared across instances). Yahoo still fills data on request. In-process APScheduler does not run on Vercel.
 
 For a durable cache later, set `DATABASE_URL` to Postgres (or similar) instead of SQLite.
 
