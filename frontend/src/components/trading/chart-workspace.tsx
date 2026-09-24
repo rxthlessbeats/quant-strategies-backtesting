@@ -93,6 +93,8 @@ export default function ChartWorkspace() {
   const [marketEarnings, setMarketEarnings] =
     useState<MarketDataAreaResponse | null>(null);
   const [marketStatsLoading, setMarketStatsLoading] = useState(false);
+  const [statementsLoading, setStatementsLoading] = useState(false);
+  const [earningsLoading, setEarningsLoading] = useState(false);
   const [marketStatsError, setMarketStatsError] = useState<string | null>(null);
   const [analystData, setAnalystData] = useState<MarketDataAreaResponse | null>(
     null,
@@ -191,6 +193,29 @@ export default function ChartWorkspace() {
       );
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const hasSymbol = symbol.trim().length > 0;
+    requestId.current += 1;
+    setChartData(null);
+    setOverview(null);
+    setMarketStats(null);
+    setMarketStatements(null);
+    setMarketEarnings(null);
+    setAnalystData(null);
+    setPerformance(null);
+    setError(null);
+    setMarketStatsError(null);
+    setAnalystError(null);
+    setPerformanceError(null);
+    setLoading(hasSymbol);
+    setOverviewLoading(hasSymbol);
+    setMarketStatsLoading(hasSymbol);
+    setStatementsLoading(hasSymbol);
+    setEarningsLoading(hasSymbol);
+    setAnalystLoading(hasSymbol);
+    setPerformanceLoading(hasSymbol);
+  }, [symbol]);
 
   const colorMap = useMemo(() => buildColorMap(selections), [selections]);
   const quote = useMemo(
@@ -376,18 +401,17 @@ export default function ChartWorkspace() {
   useEffect(() => {
     const sym = symbol.trim().toUpperCase();
     if (!sym) {
-      setMarketStats(null);
-      setMarketStatements(null);
-      setMarketEarnings(null);
       setMarketStatsLoading(false);
+      setStatementsLoading(false);
+      setEarningsLoading(false);
       setMarketStatsError(null);
       return;
     }
 
     let cancelled = false;
     setMarketStatsLoading(true);
-    setMarketStatements(null);
-    setMarketEarnings(null);
+    setStatementsLoading(true);
+    setEarningsLoading(true);
     setMarketStatsError(null);
     fetchMarketDataArea(sym, "statistics")
       .then((data) => {
@@ -411,6 +435,9 @@ export default function ChartWorkspace() {
       })
       .catch(() => {
         if (!cancelled) setMarketStatements(null);
+      })
+      .finally(() => {
+        if (!cancelled) setStatementsLoading(false);
       });
 
     fetchMarketDataArea(sym, "earnings")
@@ -419,6 +446,9 @@ export default function ChartWorkspace() {
       })
       .catch(() => {
         if (!cancelled) setMarketEarnings(null);
+      })
+      .finally(() => {
+        if (!cancelled) setEarningsLoading(false);
       });
 
     return () => {
@@ -605,7 +635,7 @@ export default function ChartWorkspace() {
             data={marketStats}
             statements={marketStatements}
             bars={chartData?.bars ?? []}
-            loading={marketStatsLoading}
+            loading={marketStatsLoading || statementsLoading}
             error={marketStatsError}
           />
         </div>
@@ -631,7 +661,12 @@ export default function ChartWorkspace() {
           data={marketStats}
           statements={marketStatements}
           earnings={marketEarnings}
-          loading={overviewLoading || marketStatsLoading}
+          loading={
+            overviewLoading ||
+            marketStatsLoading ||
+            statementsLoading ||
+            earningsLoading
+          }
         />
       </div>
 

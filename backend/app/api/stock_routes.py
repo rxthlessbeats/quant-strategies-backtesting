@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.api.http_errors import http_502
 from app.db.database import get_db
 from app.schemas.market import StockBarsResponse
 from app.schemas.requests import ChartQuery
@@ -21,5 +22,5 @@ def get_stock_bars(
         query = ChartQuery(symbol=symbol, start=start, end=end, interval=interval)
         result = get_ohlcv(db, query)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise http_502(e, fallback="Failed to load stock data") from e
     return result.to_stock_response()

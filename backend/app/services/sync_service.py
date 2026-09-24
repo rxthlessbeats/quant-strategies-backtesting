@@ -2,6 +2,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 
 from app.db import crud
+from app.db.locks import symbol_lock
 from app.fetch.downloader import get_downloader
 from app.schemas.common import DataSource
 from app.schemas.db import FetchMetaRow
@@ -21,6 +22,18 @@ def _today() -> str:
 
 
 def sync_symbol(
+    db: Session,
+    symbol: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    interval: str = "1d",
+) -> DataSource:
+    with symbol_lock(symbol):
+        db.expire_all()
+        return _sync_symbol(db, symbol, start_date, end_date, interval)
+
+
+def _sync_symbol(
     db: Session,
     symbol: str,
     start_date: str | None = None,

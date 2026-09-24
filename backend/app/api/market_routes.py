@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.api.http_errors import http_502
 from app.db.database import get_db
 from app.schemas.market import (
     CompanyOverviewResponse,
@@ -31,7 +32,7 @@ def get_market_index_metrics(db: Session = Depends(get_db)) -> IndexMetricsRespo
     try:
         return get_index_metrics(db)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise http_502(e, fallback="Failed to load market data") from e
 
 
 @router.get("/search", response_model=TickerSearchResponse)
@@ -43,7 +44,7 @@ def search_market_tickers(
     try:
         return search_tickers(keywords)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise http_502(e, fallback="Failed to load market data") from e
 
 
 @router.get(
@@ -71,7 +72,7 @@ def get_market_performance_comparison(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise http_502(e, fallback="Failed to load market data") from e
 
 
 @router.get("/overview/{symbol}", response_model=CompanyOverviewResponse)
@@ -81,7 +82,7 @@ def get_market_company_overview(
     try:
         return get_company_overview(db, symbol)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise http_502(e, fallback="Failed to load market data") from e
 
 
 @router.get("/data/{symbol}/modules", response_model=MarketDataModulesResponse)
@@ -100,7 +101,7 @@ def get_market_data_modules(
         items = ensure_modules(db, symbol, requested, force=force)
         return MarketDataModulesResponse(symbol=symbol.upper(), modules=items)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise http_502(e, fallback="Failed to load market data") from e
 
 
 @router.get("/data/{symbol}/areas/{area}", response_model=MarketDataAreaResponse)
@@ -120,7 +121,7 @@ def get_market_data_area(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise http_502(e, fallback="Failed to load market data") from e
 
 
 @router.get("/data/{symbol}/cache", response_model=MarketDataModulesResponse)
@@ -140,4 +141,4 @@ def get_market_data_cache(
         items = get_cached_modules(db, symbol, requested)
         return MarketDataModulesResponse(symbol=symbol.upper(), modules=items)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise http_502(e, fallback="Failed to load market data") from e

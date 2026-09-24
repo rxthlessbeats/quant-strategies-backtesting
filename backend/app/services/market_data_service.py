@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db import crud
 from app.db.database import sqlite_write
+from app.db.locks import symbol_lock
 from app.fetch.yahoo import DataDownloader
 from app.schemas.db import MarketDataModuleRow
 from app.schemas.settings import settings
@@ -87,6 +88,14 @@ def ensure_modules(
 ) -> list[dict]:
     normalized = symbol.upper()
     requested = _dedupe(modules)
+    with symbol_lock(normalized):
+        db.expire_all()
+        return _ensure_modules_locked(db, normalized, requested, force)
+
+
+def _ensure_modules_locked(
+    db: Session, normalized: str, requested: list[str], force: bool
+) -> list[dict]:
     cached = {
         row.module: row
         for row in crud.get_market_data_modules(db, normalized, requested)

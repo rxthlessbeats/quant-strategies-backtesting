@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import AnalysisChartQueryDep
+from app.api.http_errors import http_502
 from app.db.database import get_db
 from app.schemas.indicators import IndicatorCatalogItem
 from app.schemas.market import AnalysisChartResponse
@@ -20,7 +21,7 @@ def get_analysis_chart(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise http_502(e, fallback="Failed to load chart data") from e
 
     return ohlcv.to_analysis_response(indicators.as_dict())
 

@@ -31,7 +31,7 @@ function fetchTarget(path: string): { url: string; headers: HeadersInit } {
   return { url: `/api/backend${path}`, headers: {} };
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
+async function apiFetch<T>(path: string, attempt = 0): Promise<T> {
   const { url, headers } = fetchTarget(path);
   const res = await fetch(url, { cache: "no-store", headers });
   if (!res.ok) {
@@ -47,9 +47,28 @@ async function apiFetch<T>(path: string): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new Error(detail);
+    const retryable = res.status === 502 || res.status === 503;
+    if (attempt < 1 && retryable) {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return apiFetch<T>(path, attempt + 1);
+    }
+    throw new Error(publicApiError(detail));
   }
   return res.json() as Promise<T>;
+}
+
+function publicApiError(detail: string): string {
+  const lowered = detail.toLowerCase();
+  if (
+    lowered.includes("[sql:") ||
+    lowered.includes("sqlite") ||
+    lowered.includes("sqlalchemy") ||
+    lowered.includes("operationalerror") ||
+    lowered.includes("pendingrollback")
+  ) {
+    return "Fetching this ticker for the first time. Please wait a moment.";
+  }
+  return detail;
 }
 
 export interface ChartQueryParams {
