@@ -1,8 +1,17 @@
 from typing import Annotated
 
 from fastapi import Depends, Query
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 
 from app.schemas.requests import AnalysisChartQuery, ChartQuery
+
+
+def _validated_query(query_type, **values):
+    try:
+        return query_type(**values)
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors(include_context=False)) from exc
 
 
 def get_chart_query(
@@ -11,7 +20,9 @@ def get_chart_query(
     end: str | None = Query(None, description="End date YYYY-MM-DD"),
     interval: str = Query("1d"),
 ) -> ChartQuery:
-    return ChartQuery(symbol=symbol, start=start, end=end, interval=interval)
+    return _validated_query(
+        ChartQuery, symbol=symbol, start=start, end=end, interval=interval
+    )
 
 
 def get_analysis_chart_query(
@@ -24,7 +35,8 @@ def get_analysis_chart_query(
         description="Comma-separated specs, e.g. sma:5,sma:20,ema:50",
     ),
 ) -> AnalysisChartQuery:
-    return AnalysisChartQuery(
+    return _validated_query(
+        AnalysisChartQuery,
         symbol=symbol,
         start=start,
         end=end,

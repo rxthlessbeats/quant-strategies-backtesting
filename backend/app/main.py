@@ -1,9 +1,8 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api import analysis_routes, market_routes, stock_routes
 from app.api.auth import require_api_key
@@ -32,6 +31,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -40,13 +40,6 @@ app.add_middleware(
     allow_headers=["X-API-Key", "Content-Type"],
 )
 app.middleware("http")(require_api_key)
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
-    _request, exc: RequestValidationError
-) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 app.include_router(stock_routes.router)

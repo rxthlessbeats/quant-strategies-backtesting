@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from app.indicators.types import IndicatorEntry, IndicatorMeta
@@ -34,6 +35,39 @@ def macd(
     }
 
 
+def roc(df: pd.DataFrame, period: int = 12) -> pd.Series:
+    return momentum(df, period) * 100
+
+
+def stoch(
+    df: pd.DataFrame, period: int = 14, smooth_k: int = 3, smooth_d: int = 3
+) -> dict[str, pd.Series]:
+    low = df["Low"].rolling(period).min()
+    spread = df["High"].rolling(period).max() - low
+    raw = ((df["Close"] - low) / spread.replace(0, np.nan) * 100).mask(spread.eq(0), 0)
+    k = raw.rolling(smooth_k).mean()
+    return {"k": k, "d": k.rolling(smooth_d).mean()}
+
+
+def willr(df: pd.DataFrame, period: int = 14) -> pd.Series:
+    high = df["High"].rolling(period).max()
+    spread = high - df["Low"].rolling(period).min()
+    return ((df["Close"] - high) / spread.replace(0, np.nan) * 100).mask(
+        spread.eq(0), 0
+    )
+
+
+def cci(df: pd.DataFrame, period: int = 20) -> pd.Series:
+    typical = (df["High"] + df["Low"] + df["Close"]) / 3
+    average = typical.rolling(period).mean()
+    deviation = typical.rolling(period).apply(
+        lambda values: np.abs(values - values.mean()).mean(), raw=True
+    )
+    return ((typical - average) / (0.015 * deviation.replace(0, np.nan))).mask(
+        deviation.eq(0), 0
+    )
+
+
 MOMENTUM: dict[str, IndicatorEntry] = {
     "momentum": IndicatorEntry(
         meta=IndicatorMeta(
@@ -60,3 +94,29 @@ MOMENTUM: dict[str, IndicatorEntry] = {
         compute=macd,
     ),
 }
+
+for name, compute, params, description in (
+    ("roc", roc, {"period": 12}, "Rate of change in percent over the lookback window"),
+    (
+        "stoch",
+        stoch,
+        {"period": 14, "smooth_k": 3, "smooth_d": 3},
+        "Slow stochastic oscillator with smoothed %K and %D lines",
+    ),
+    (
+        "willr",
+        willr,
+        {"period": 14},
+        "Williams %R: close within its high-low range, from -100 to 0",
+    ),
+    (
+        "cci",
+        cci,
+        {"period": 20},
+        "Commodity channel index: typical price versus its mean deviation",
+    ),
+):
+    MOMENTUM[name] = IndicatorEntry(
+        meta=IndicatorMeta(category="momentum", params=params, description=description),
+        compute=compute,
+    )

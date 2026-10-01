@@ -20,5 +20,4 @@ class BarPoint(BaseModel):
 
 
 def validate_date_str(value: str) -> str:
-    datetime.strptime(value, "%Y-%m-%d")
-    return value
+    return datetime.strptime(value, "%Y-%m-%d").strftime("%Y-%m-%d")

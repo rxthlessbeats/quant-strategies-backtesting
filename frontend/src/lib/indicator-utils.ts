@@ -41,28 +41,18 @@ export function createSelection(
 
 export function parseIndicatorSelections(query: string): IndicatorSelection[] {
   const parts = query.split(",").filter(Boolean);
-  if (parts.length === 0) {
-    return defaultIndicatorSelections();
-  }
   return parts.map((part, index) => {
     const [id, paramsStr] = part.includes(":")
       ? part.split(":", 2)
-      : [part.trim(), "20"];
+      : [part.trim(), undefined];
     const idNorm = id.trim().toLowerCase();
-    const params = parseParams(idNorm, paramsStr);
+    const params = paramsStr === undefined ? defaultParams(idNorm) : parseParams(idNorm, paramsStr);
     return {
       slotId: `slot-${index}-${idNorm}-${paramsSuffix(idNorm, params)}`,
       id: idNorm,
       params,
     };
   });
-}
-
-export function defaultIndicatorSelections(): IndicatorSelection[] {
-  return [
-    createSelection("sma", { period: 5 }),
-    createSelection("sma", { period: 20 }),
-  ];
 }
 
 export const INDICATOR_COLORS = [
@@ -95,15 +85,9 @@ export function buildColorMap(
       map[`macd_signal_${suffix}`] = MACD_SIGNAL_COLOR;
       return;
     }
-    if (sel.id === "bbands") {
-      const suffix = paramsSuffix(sel.id, sel.params);
-      map[`bbands_upper_${suffix}`] = color;
-      map[`bbands_middle_${suffix}`] = BBANDS_MIDDLE_COLOR;
-      map[`bbands_lower_${suffix}`] = color;
-      return;
-    }
     indicatorSeriesKeys(sel).forEach((key) => {
-      map[key] = color;
+      map[key] = key.includes("_middle_") ? BBANDS_MIDDLE_COLOR
+        : key.startsWith("stoch_d_") ? colorForSlot(index + 1) : color;
     });
   });
   return map;
@@ -157,6 +141,7 @@ export function paramsDisplay(params: Record<string, number>): string {
 
 function selectionQueryPart(selection: IndicatorSelection): string {
   const entries = orderedParamEntries(selection.id, selection.params);
+  if (!entries.length) return selection.id;
   if (entries.length === 1 && entries[0][0] === "period") {
     return `${selection.id}:${entries[0][1]}`;
   }
@@ -181,10 +166,28 @@ function parseParams(id: string, raw: string): Record<string, number> {
 }
 
 function defaultParams(id: string): Record<string, number> {
-  if (id === "macd") return { fast: 12, slow: 26, signal: 9 };
-  if (id === "bbands") return { period: 20, std: 2 };
-  if (id === "rsi") return { period: 14 };
-  return { period: 20 };
+  const defaults: Record<string, Record<string, number>> = {
+    sma: { period: 20 }, ema: { period: 50 }, wma: { period: 20 },
+    dema: { period: 20 }, tema: { period: 20 }, vwma: { period: 20 },
+    momentum: { period: 63 }, rsi: { period: 14 },
+    macd: { fast: 12, slow: 26, signal: 9 }, roc: { period: 12 },
+    stoch: { period: 14, smooth_k: 3, smooth_d: 3 }, willr: { period: 14 },
+    cci: { period: 20 }, bbands: { period: 20, std: 2 },
+    atr: { period: 14 }, natr: { period: 14 }, donchian: { period: 20 },
+    obv: {}, mfi: { period: 14 }, cmf: { period: 20 }, ad: {},
+  };
+  return { ...(defaults[id] ?? { period: 20 }) };
+}
+
+export const INDICATOR_PANES: Record<string, number[]> = {
+  rsi: [30, 70], macd: [], momentum: [0], roc: [0], stoch: [20, 80],
+  willr: [-80, -20], cci: [-100, 100], atr: [], natr: [],
+  obv: [], mfi: [20, 80], cmf: [0], ad: [],
+};
+
+export function indicatorPane(key: string): string | null {
+  const id = key.split("_")[0];
+  return Object.hasOwn(INDICATOR_PANES, id) ? id : null;
 }
 
 function parseNumber(value: string | undefined, fallback: number): number {
@@ -196,12 +199,7 @@ function orderedParamEntries(
   id: string,
   params: Record<string, number>,
 ): [string, number][] {
-  const order =
-    id === "macd"
-      ? ["fast", "slow", "signal"]
-      : id === "bbands"
-        ? ["period", "std"]
-        : ["period"];
+  const order = Object.keys(defaultParams(id));
   const known = order
     .filter((key) => params[key] != null)
     .map((key) => [key, params[key]] as [string, number]);
@@ -233,13 +231,17 @@ function indicatorSeriesKeys(selection: IndicatorSelection): string[] {
     const suffix = paramsSuffix(selection.id, selection.params);
     return [`macd_${suffix}`, `macd_signal_${suffix}`, `macd_hist_${suffix}`];
   }
-  if (selection.id === "bbands") {
+  if (selection.id === "bbands" || selection.id === "donchian") {
     const suffix = paramsSuffix(selection.id, selection.params);
     return [
-      `bbands_upper_${suffix}`,
-      `bbands_middle_${suffix}`,
-      `bbands_lower_${suffix}`,
+      `${selection.id}_upper_${suffix}`,
+      `${selection.id}_middle_${suffix}`,
+      `${selection.id}_lower_${suffix}`,
     ];
+  }
+  if (selection.id === "stoch") {
+    const suffix = paramsSuffix(selection.id, selection.params);
+    return [`stoch_k_${suffix}`, `stoch_d_${suffix}`];
   }
   return [key];
 }

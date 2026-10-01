@@ -174,13 +174,13 @@ function MetricRow({
   muted?: string;
 }) {
   return (
-    <div className="border-b border-dotted border-border/70 py-2.5">
-      <div className="flex items-start justify-between gap-4">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-right text-sm font-medium text-foreground">
+    <div className="valuation-row">
+      <div className="valuation-row-content">
+        <span className="valuation-label">{label}</span>
+        <span className="valuation-value">
           {value}
           {muted && (
-            <span className="text-xs text-muted-foreground"> ({muted})</span>
+            <span className="valuation-note"> ({muted})</span>
           )}
         </span>
       </div>
@@ -190,11 +190,8 @@ function MetricRow({
 
 function FeaturedMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-b border-dotted border-border/70 pb-3">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-semibold text-foreground">{value}</p>
+    <div className="valuation-featured">
+      <dt>{label}</dt><dd>{value}</dd>
     </div>
   );
 }
@@ -266,66 +263,23 @@ export default function ValuationMetricsPanel({
   ];
 
   return (
-    <section className="w-full overflow-hidden rounded-lg border border-border bg-black/40 backdrop-blur-md lg:flex-1">
-      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-        <h2 className="text-sm font-semibold text-foreground">
-          Valuation metrics
-        </h2>
-        {updatedAt && (
-          <span className="text-xs text-muted-foreground">
-            Updated {updatedAt}
-          </span>
-        )}
-      </div>
-
-      <div className="p-4">
-        {error && (
-          <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        {!error && loading && (
-          <div className="space-y-3">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-8 animate-pulse rounded bg-muted/20"
-              />
+    <section className="valuation-metrics">
+      <div className="panel-subheading"><h3>Valuation metrics</h3>{updatedAt && <span>Updated {updatedAt}</span>}</div>
+      {error ? <p className="research-error">{error}</p> : loading ? (
+        <p className="research-loading" role="status">Loading valuation metrics…</p>
+      ) : (
+        <>
+          <dl className="valuation-highlights">
+            <FeaturedMetric label="Market cap" value={formattedValue(marketCap)} />
+            <FeaturedMetric label="Enterprise value" value={formattedValue(enterpriseValue)} />
+          </dl>
+          <div className="valuation-columns">
+            {columns.map((column, columnIndex) => (
+              <div key={columnIndex}>{column.map(row => <MetricRow key={row.label} label={row.label} value={formatMetricValue(row)} muted={row.muted} />)}</div>
             ))}
           </div>
-        )}
-
-        {!error && !loading && (
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <FeaturedMetric
-                label="Market Cap"
-                value={formattedValue(marketCap)}
-              />
-              <FeaturedMetric
-                label="Enterprise Value"
-                value={formattedValue(enterpriseValue)}
-              />
-            </div>
-
-            <div className="grid gap-x-6 md:grid-cols-2">
-              {columns.map((column, columnIndex) => (
-                <div key={columnIndex}>
-                  {column.map((row: MetricRowData) => (
-                    <MetricRow
-                      key={row.label}
-                      label={row.label}
-                      value={formatMetricValue(row)}
-                      muted={row.muted}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+        </>
+      )}
     </section>
   );
 }

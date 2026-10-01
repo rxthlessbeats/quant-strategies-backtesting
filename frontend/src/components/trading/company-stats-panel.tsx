@@ -1,6 +1,8 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { VChart } from "@visactor/react-vchart";
+import { ChartThemeProvider } from "@/components/providers/chart-theme-provider";
 import type { IBarChartSpec } from "@visactor/vchart";
 import { useMemo, useState } from "react";
 import type { CompanyOverview, MarketDataAreaResponse } from "@/lib/types";
@@ -38,6 +40,7 @@ export default function CompanyStatsPanel({
   const [earningsView, setEarningsView] = useState<"quarterly" | "yearly">(
     "quarterly",
   );
+  const [earningsMetric, setEarningsMetric] = useState<"eps" | "revenue" | "cash">("eps");
   const sections = useMemo(
     () => buildFinancialSections(overview, data),
     [overview, data],
@@ -66,106 +69,51 @@ export default function CompanyStatsPanel({
     [statements, data, earningsView],
   );
 
+  const chartLabels = { eps: "EPS estimate vs actual", revenue: "Revenue vs earnings", cash: "Cash vs debt" };
+  const hasChart = earningsMetric === "eps" ? chartRows.length > 0 : earningsMetric === "revenue" ? revenueEarningsRows.length > 0 : cashDebtRows.length > 0;
+
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
-      <div className="rounded-lg border border-border bg-black/40 px-3 py-3 backdrop-blur-md">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-200">Financials</h2>
-          {overview?.latest_quarter && (
-            <span className="text-xs text-slate-500">
-              Latest quarter: {overview.latest_quarter}
-            </span>
-          )}
+    <ChartThemeProvider>
+      <div className="research-section financials-section" aria-busy={loading}>
+        <div className="research-heading">
+          <div><h2>Financials & earnings</h2><p>Look inside the business. Follow how its results evolve.</p></div>
+          {overview?.latest_quarter && <span className="research-date">Latest quarter {overview.latest_quarter}</span>}
         </div>
-
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading fundamentals...</p>
-        ) : (
-          <div className="space-y-4">
-            {sections.map((section) => (
-              <div key={section.title}>
-                <div className="mb-1 text-xs font-medium text-slate-300">
-                  {section.title}
-                </div>
-                <div className="divide-y divide-white/10 border-t border-white/10">
-                  {section.rows.map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-start justify-between gap-3 py-2 text-xs"
-                    >
-                      <span className="text-slate-500">{row.label}</span>
-                      <span className="text-right font-medium text-slate-100">
-                        {row.value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+        <div className="financial-layout">
+          <section className="fundamentals-pane">
+            <div className="panel-subheading"><h3>Financials</h3><span>Expand to explore</span></div>
+            {loading ? <p className="research-loading" role="status">Loading fundamentals…</p> : (
+              <div className="financial-statements">
+                {sections.map((section, index) => (
+                  <details key={section.title} className="financial-statement" open={index === 0}>
+                    <summary><h4>{section.title}</h4><ChevronDown size={17} aria-hidden="true" /></summary>
+                    <dl>{section.rows.map(row => <div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>
+                  </details>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-black/40 px-3 py-3 backdrop-blur-md">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-slate-200">Earnings Trends</h2>
-          <div className="rounded-md border border-white/10 bg-black/30 p-0.5 text-xs">
-            {(["quarterly", "yearly"] as const).map((view) => (
-              <button
-                key={view}
-                type="button"
-                onClick={() => {
-                  if (earningsView !== view) {
-                    setEarningsView(view);
-                  }
-                }}
-                className={`rounded px-2 py-1 capitalize ${
-                  earningsView === view
-                    ? "bg-white/10 text-slate-100"
-                    : "text-slate-500 hover:text-slate-200"
-                }`}
-              >
-                {view}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading earnings...</p>
-        ) : chartRows.length ? (
-          <div className="space-y-4">
-            <div>
-              <p className="mb-2 text-xs font-medium text-slate-300">
-                EPS estimate vs actual
-              </p>
-              <EarningsTrendChart rows={chartRows} />
+            )}
+          </section>
+          <section className="earnings-pane">
+            <div className="panel-subheading">
+              <h3>Earnings Trends</h3>
+              <div className="period-selector" role="group" aria-label="Earnings frequency">
+                {(["quarterly", "yearly"] as const).map(view => <button key={view} type="button" aria-pressed={earningsView === view} onClick={() => setEarningsView(view)}>{view}</button>)}
+              </div>
             </div>
-            {revenueEarningsRows.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-300">
-                  Revenue vs Earnings
-                </p>
-                <RevenueEarningsChart rows={revenueEarningsRows} />
-              </div>
-            )}
-            {cashDebtRows.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-300">
-                  Cash vs Debt
-                </p>
-                <CashDebtChart rows={cashDebtRows} />
-              </div>
-            )}
-            {growthSummary && (
-              <EarningsGrowthTable summary={growthSummary} view={earningsView} />
-            )}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-500">No earnings trend data available.</p>
-        )}
+            <div className="earnings-chart-tabs" role="group" aria-label="Financial chart">
+              {(["eps", "revenue", "cash"] as const).map(metric => <button key={metric} type="button" aria-label={chartLabels[metric]} aria-pressed={earningsMetric === metric} onClick={() => setEarningsMetric(metric)}>{metric === "eps" ? "EPS" : metric === "revenue" ? "Revenue vs earnings" : "Cash vs debt"}</button>)}
+            </div>
+            <p className="chart-feedback" role="status">Showing {earningsView} {chartLabels[earningsMetric].toLowerCase()}.</p>
+            <div key={`${earningsMetric}-${earningsView}`} className="earnings-chart-stage" role="group" aria-label={chartLabels[earningsMetric]}>
+              {loading ? <p className="research-loading">Loading earnings…</p> : hasChart ? (
+                earningsMetric === "eps" ? <EarningsTrendChart rows={chartRows} /> : earningsMetric === "revenue" ? <RevenueEarningsChart rows={revenueEarningsRows} /> : <CashDebtChart rows={cashDebtRows} />
+              ) : <p className="research-empty">No {chartLabels[earningsMetric].toLowerCase()} data available for this period.</p>}
+            </div>
+            {!loading && growthSummary && <EarningsGrowthTable summary={growthSummary} view={earningsView} />}
+          </section>
+        </div>
       </div>
-    </div>
+    </ChartThemeProvider>
   );
 }
 
@@ -214,24 +162,24 @@ function EarningsGrowthTable({
 
   const gridClass =
     view === "quarterly"
-      ? "grid-cols-[1fr_4.5rem_4.5rem]"
-      : "grid-cols-[1fr_4.5rem]";
+      ? "grid-cols-[1fr_3.5rem_3.5rem]"
+      : "grid-cols-[1fr_3.5rem]";
 
   return (
-    <div className="rounded-md border border-white/10 bg-white/[0.02] px-3 py-2">
+    <div className="growth-summary">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-slate-300">Growth</p>
-        <span className="text-xs text-slate-500">{summary.periodLabel}</span>
+        <p className="growth-title">Growth</p>
+        <span className="text-xs text-muted-foreground">{summary.periodLabel}</span>
       </div>
       <div className={`grid ${gridClass} gap-x-3 gap-y-1 text-xs`}>
-        <div className="text-slate-500" />
+        <div className="text-muted-foreground" />
         {view === "quarterly" && (
-          <div className="text-right text-slate-500">QoQ</div>
+          <div className="text-right text-muted-foreground">QoQ</div>
         )}
-        <div className="text-right text-slate-500">YoY</div>
+        <div className="text-right text-muted-foreground">YoY</div>
         {rows.map((row) => (
           <div key={row.metric} className="contents">
-            <span className="text-slate-400">{row.metric}</span>
+            <span className="text-muted-foreground">{row.metric}</span>
             {view === "quarterly" && <GrowthCell value={row.rates.qoq} />}
             <GrowthCell value={row.rates.yoy} />
           </div>
@@ -248,10 +196,10 @@ function GrowthCell({ value }: { value: string }) {
     <span
       className={`text-right font-medium ${
         positive
-          ? "text-emerald-400"
+          ? "text-[var(--positive)]"
           : negative
-            ? "text-rose-400"
-            : "text-slate-500"
+            ? "text-[var(--negative)]"
+            : "text-muted-foreground"
       }`}
     >
       {value}
@@ -262,6 +210,7 @@ function GrowthCell({ value }: { value: string }) {
 function EarningsTrendChart({ rows }: { rows: EarningsTrendChartRow[] }) {
   const spec = useMemo<IBarChartSpec>(() => ({
     type: "bar",
+    animation: typeof window !== "undefined" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     data: [
       {
         id: "earningsTrendData",
@@ -273,18 +222,15 @@ function EarningsTrendChart({ rows }: { rows: EarningsTrendChartRow[] }) {
     seriesField: "type",
     stack: false,
     barGapInGroup: "25%",
-    height: 220,
+    height: 280,
     padding: [12, 12, 36, 4],
-    color: ["#a78bfa", "#38bdf8"],
+    color: ["#9270df", "#409bab"],
     legends: {
       visible: true,
       orient: "bottom",
       position: "middle",
       item: {
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
       },
     },
@@ -297,28 +243,16 @@ function EarningsTrendChart({ rows }: { rows: EarningsTrendChartRow[] }) {
         title: {
           visible: true,
           text: "EPS",
-          style: {
-            fill: "#94a3b8",
-          },
         },
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
         grid: {
           visible: true,
-          style: {
-            stroke: "#1f2937",
-          },
         },
       },
       {
         orient: "bottom",
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
       },
     ],
@@ -330,7 +264,7 @@ function EarningsTrendChart({ rows }: { rows: EarningsTrendChartRow[] }) {
   }), [rows]);
 
   return (
-    <div className="h-60">
+    <div className="financial-chart">
       <VChart spec={spec} />
     </div>
   );
@@ -339,6 +273,7 @@ function EarningsTrendChart({ rows }: { rows: EarningsTrendChartRow[] }) {
 function CashDebtChart({ rows }: { rows: CashDebtChartRow[] }) {
   const spec = useMemo<IBarChartSpec>(() => ({
     type: "bar",
+    animation: typeof window !== "undefined" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     data: [
       {
         id: "cashDebtData",
@@ -350,18 +285,15 @@ function CashDebtChart({ rows }: { rows: CashDebtChartRow[] }) {
     seriesField: "type",
     stack: false,
     barGapInGroup: "25%",
-    height: 220,
+    height: 280,
     padding: [12, 12, 36, 4],
-    color: ["#22d3ee", "#f87171"],
+    color: ["#5684bf", "#c66e87"],
     legends: {
       visible: true,
       orient: "bottom",
       position: "middle",
       item: {
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
       },
     },
@@ -374,28 +306,16 @@ function CashDebtChart({ rows }: { rows: CashDebtChartRow[] }) {
         title: {
           visible: true,
           text: "USD (B)",
-          style: {
-            fill: "#94a3b8",
-          },
         },
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
         grid: {
           visible: true,
-          style: {
-            stroke: "#1f2937",
-          },
         },
       },
       {
         orient: "bottom",
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
       },
     ],
@@ -407,7 +327,7 @@ function CashDebtChart({ rows }: { rows: CashDebtChartRow[] }) {
   }), [rows]);
 
   return (
-    <div className="h-60">
+    <div className="financial-chart">
       <VChart spec={spec} />
     </div>
   );
@@ -416,6 +336,7 @@ function CashDebtChart({ rows }: { rows: CashDebtChartRow[] }) {
 function RevenueEarningsChart({ rows }: { rows: RevenueEarningsChartRow[] }) {
   const spec = useMemo<IBarChartSpec>(() => ({
     type: "bar",
+    animation: typeof window !== "undefined" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     data: [
       {
         id: "revenueEarningsData",
@@ -427,18 +348,15 @@ function RevenueEarningsChart({ rows }: { rows: RevenueEarningsChartRow[] }) {
     seriesField: "type",
     stack: false,
     barGapInGroup: "25%",
-    height: 220,
+    height: 280,
     padding: [12, 12, 36, 4],
-    color: ["#10b981", "#f59e0b"],
+    color: ["#32967c", "#b38635"],
     legends: {
       visible: true,
       orient: "bottom",
       position: "middle",
       item: {
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
       },
     },
@@ -451,28 +369,16 @@ function RevenueEarningsChart({ rows }: { rows: RevenueEarningsChartRow[] }) {
         title: {
           visible: true,
           text: "USD (B)",
-          style: {
-            fill: "#94a3b8",
-          },
         },
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
         grid: {
           visible: true,
-          style: {
-            stroke: "#1f2937",
-          },
         },
       },
       {
         orient: "bottom",
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
       },
     ],
@@ -484,7 +390,7 @@ function RevenueEarningsChart({ rows }: { rows: RevenueEarningsChartRow[] }) {
   }), [rows]);
 
   return (
-    <div className="h-60">
+    <div className="financial-chart">
       <VChart spec={spec} />
     </div>
   );

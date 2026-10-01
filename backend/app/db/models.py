@@ -31,6 +31,7 @@ class FetchMeta(Base):
     interval: Mapped[str] = mapped_column(String(8), primary_key=True)
     last_bar_ts: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     fetched_at: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Null start + end_date means the provider's complete history was fetched.
     start_date: Mapped[str | None] = mapped_column(String(16), nullable=True)
     end_date: Mapped[str | None] = mapped_column(String(16), nullable=True)
 

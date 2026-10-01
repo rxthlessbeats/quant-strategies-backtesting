@@ -19,8 +19,8 @@ export const siteConfig = {
 };
 
 export const navigations: Navigation[] = [
-  { icon: Gauge, name: "Dashboard", href: "/" },
-  { icon: CandlestickChart, name: "Chart", href: "/chart" },
+  { icon: Gauge, name: "Overview", href: "/" },
+  { icon: CandlestickChart, name: "Workspace", href: "/chart" },
   { icon: ListOrdered, name: "Indicators", href: "/indicators" },
-  { icon: Activity, name: "Health", href: "/health" },
+  { icon: Activity, name: "System", href: "/health" },
 ];

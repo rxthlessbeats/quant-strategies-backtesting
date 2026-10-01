@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.db import crud
 from app.db.database import sqlite_write
 from app.db.locks import symbol_lock
-from app.fetch.yahoo import DataDownloader
+from app.fetch.downloader import get_yahoo_downloader
 from app.schemas.db import MarketDataModuleRow
 from app.schemas.settings import settings
 
@@ -88,6 +88,17 @@ def ensure_modules(
 ) -> list[dict]:
     normalized = symbol.upper()
     requested = _dedupe(modules)
+    if not force:
+        db.expire_all()
+        cached = {
+            row.module: row
+            for row in crud.get_market_data_modules(db, normalized, requested)
+        }
+        if all(not _is_module_due(cached.get(module)) for module in requested):
+            return [
+                _module_response(crud.market_data_module_to_schema(cached[module]))
+                for module in requested
+            ]
     with symbol_lock(normalized):
         db.expire_all()
         return _ensure_modules_locked(db, normalized, requested, force)
@@ -105,7 +116,7 @@ def _ensure_modules_locked(
     ]
 
     if due:
-        downloader = DataDownloader()
+        downloader = get_yahoo_downloader()
         timeseries_due = [
             module for module in due if module == "fundamentalsTimeSeriesQuarterly"
         ]

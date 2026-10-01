@@ -24,13 +24,14 @@ class IndicatorSpec(BaseModel):
         if ":" in raw:
             name, param_str = raw.split(":", 1)
             params: dict[str, Any] = {}
-            if param_str.isdigit():
-                params["period"] = int(param_str)
+            if "=" not in param_str:
+                params["period"] = _parse_param_value(param_str)
             else:
                 for kv in param_str.split(";"):
-                    if "=" in kv:
-                        k, v = kv.split("=", 1)
-                        params[k.strip()] = _parse_param_value(v)
+                    if "=" not in kv:
+                        raise ValueError("Indicator parameters must use name=value")
+                    k, v = kv.split("=", 1)
+                    params[k.strip()] = _parse_param_value(v)
             return cls(name=name, params=IndicatorParams(**params))
         return cls(name=raw)
 
@@ -39,6 +40,7 @@ class IndicatorSpec(BaseModel):
 
         if self.name not in REGISTRY:
             raise ValueError(f"Unknown indicator: {self.name}")
+        REGISTRY[self.name].merged_params(self.params.model_dump(exclude_none=True))
 
 
 def _parse_param_value(value: str) -> int | float | str:

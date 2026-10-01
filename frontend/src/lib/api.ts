@@ -33,7 +33,17 @@ function fetchTarget(path: string): { url: string; headers: HeadersInit } {
 
 async function apiFetch<T>(path: string, attempt = 0): Promise<T> {
   const { url, headers } = fetchTarget(path);
-  const res = await fetch(url, { cache: "no-store", headers });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      cache: typeof window === "undefined" || path === "/health" || path.includes("force=")
+        ? "no-store" : "default",
+      headers,
+      signal: AbortSignal.timeout(55000),
+    });
+  } catch {
+    throw new Error("The market data connection is unavailable. Please try again.");
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {

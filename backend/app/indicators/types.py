@@ -1,3 +1,4 @@
+import math
 from collections.abc import Callable
 from typing import Any
 
@@ -33,4 +34,23 @@ class IndicatorEntry(BaseModel):
         return self.meta.description
 
     def merged_params(self, overrides: dict[str, Any]) -> dict[str, Any]:
-        return {**self.meta.params, **overrides}
+        unknown = overrides.keys() - self.meta.params.keys()
+        if unknown:
+            raise ValueError(
+                f"Unsupported indicator parameters: {', '.join(sorted(unknown))}"
+            )
+        params = {**self.meta.params, **overrides}
+        for name, value in params.items():
+            if (
+                not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or not 0 < value <= 500
+            ):
+                raise ValueError(f"{name} must be a positive number no larger than 500")
+            if name != "std" and int(value) != value:
+                raise ValueError(f"{name} must be a whole number of bars")
+            if name != "std":
+                params[name] = int(value)
+        if "fast" in params and params["fast"] >= params["slow"]:
+            raise ValueError("MACD fast must be smaller than slow")
+        return params

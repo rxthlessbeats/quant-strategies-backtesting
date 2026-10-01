@@ -1,8 +1,9 @@
 "use client";
 
 import { VChart } from "@visactor/react-vchart";
+import { ChartThemeProvider } from "@/components/providers/chart-theme-provider";
 import type { IBarChartSpec } from "@visactor/vchart";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { BarPoint, MarketDataAreaResponse } from "@/lib/types";
 
 interface AnalystRecommendationsPanelProps {
@@ -46,18 +47,11 @@ interface TargetMetrics {
 }
 
 const RECOMMENDATION_BUCKETS = [
-  { key: "strongBuy", label: "Strong Buy", color: "#10b981" },
-  { key: "buy", label: "Buy", color: "#22c55e" },
-  { key: "hold", label: "Hold", color: "#f59e0b" },
-  { key: "sell", label: "Sell", color: "#f97316" },
-  { key: "strongSell", label: "Strong Sell", color: "#ef4444" },
-] as const;
-
-const TARGET_SERIES = [
-  { key: "price", label: "Now Price", color: "#38bdf8" },
-  { key: "low", label: "Low Target", color: "#f97316" },
-  { key: "mean", label: "Mean Target", color: "#a78bfa" },
-  { key: "high", label: "High Target", color: "#10b981" },
+  { key: "strongBuy", label: "Strong Buy", color: "#14775d" },
+  { key: "buy", label: "Buy", color: "#39966c" },
+  { key: "hold", label: "Hold", color: "#b9872b" },
+  { key: "sell", label: "Sell", color: "#cb743e" },
+  { key: "strongSell", label: "Strong Sell", color: "#be3557" },
 ] as const;
 
 const STACKED_RECOMMENDATION_BUCKETS = [...RECOMMENDATION_BUCKETS].reverse();
@@ -254,95 +248,49 @@ export default function AnalystRecommendationsPanel({
   const hasTargetChart = Object.values(targets).some((value) => value != null);
 
   return (
-    <section className="rounded-lg border border-border bg-black/40 px-3 py-3 backdrop-blur-md">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-slate-200">
-          Analyst Recommendations
-        </h2>
-      </div>
-
-      {error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : loading ? (
-        <LoadingState />
-      ) : trends.length || history.length || hasTargetChart ? (
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-          <TargetPriceRange targets={targets} />
-          {trends.length > 1 ? (
-            <RecommendationStackedBar trends={trends.slice(0, 4).reverse()} />
-          ) : (
-            <div className="rounded-md border border-white/10 p-3">
-              <p className="text-sm font-medium text-slate-100">Recommendation history</p>
-              <p className="py-8 text-sm text-slate-500">
-                No recommendation history available.
-              </p>
+    <ChartThemeProvider>
+      <section className="research-section analyst-section" aria-busy={loading}>
+        <div className="research-heading"><div><h2>Analyst Recommendations</h2><p>Price targets, conviction, and the latest rating changes.</p></div></div>
+        {error ? <p className="research-error">{error}</p> : loading ? <LoadingState /> : trends.length || history.length || hasTargetChart ? (
+          <>
+            <div className="analyst-outlook">
+              <TargetPriceRange targets={targets} />
+              {trends.length > 1 ? <RecommendationStackedBar trends={trends.slice(0, 4).reverse()} /> : (
+                <div className="recommendation-history"><h3>Recommendation history</h3><p className="research-empty">No recommendation history available.</p></div>
+              )}
             </div>
-          )}
-          <RecentRatingActions history={history} />
-          <CurrentMonthPriceChanges history={history} />
-        </div>
-      ) : (
-        <p className="text-sm text-slate-500">No analyst data available.</p>
-      )}
-    </section>
+            <div className="analyst-updates"><RecentRatingActions history={history} /><CurrentMonthPriceChanges history={history} /></div>
+          </>
+        ) : <p className="research-empty">No analyst data available.</p>}
+      </section>
+    </ChartThemeProvider>
   );
 }
 
 function TargetPriceRange({ targets }: { targets: TargetMetrics }) {
+  const [focus, setFocus] = useState<"mean" | "price">("mean");
   const hasRange = targets.low != null && targets.high != null && targets.high > targets.low;
   const pricePosition = rangePosition(targets.low, targets.high, targets.price);
   const meanPosition = rangePosition(targets.low, targets.high, targets.mean);
-  const priceColor = TARGET_SERIES.find((series) => series.key === "price")?.color;
-  const meanColor = TARGET_SERIES.find((series) => series.key === "mean")?.color;
 
   return (
-    <div className="rounded-md border border-white/10 p-3">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-slate-100">Price target range</p>
-        </div>
+    <div className="analyst-target">
+      <div className="target-heading"><h3>Price target range</h3><span>USD</span></div>
+      <div className="target-selector" role="group" aria-label="Price target focus">
+        <button type="button" aria-pressed={focus === "mean"} onClick={() => setFocus("mean")}>Mean target</button>
+        <button type="button" aria-pressed={focus === "price"} onClick={() => setFocus("price")}>Current price</button>
       </div>
+      <p key={focus} className="target-focus-value" aria-live="polite" aria-atomic="true"><span className="sr-only">{focus === "mean" ? "Mean target" : "Current price"}: </span>{formatPriceTarget(targets[focus])}</p>
       {hasRange ? (
-        <>
-          <div className="relative mt-12 h-10">
-            <div className="absolute inset-x-0 top-7 h-3 rounded-full bg-slate-700/80" />
-            <div
-              className="absolute top-[-5px] z-10 flex -translate-x-1/2 flex-col items-center"
-              style={{ left: `${pricePosition * 100}%` }}
-              title={`Now price ${formatPriceTarget(targets.price)}`}
-            >
-              <span className="whitespace-nowrap rounded border border-sky-400/70 px-1.5 py-0.5 text-xs font-medium text-sky-300">
-                Now {formatPriceTarget(targets.price)}
-              </span>
-              <span
-                className="h-6 w-0.5"
-                style={{ backgroundColor: priceColor }}
-              />
-            </div>
-            <div
-              className="absolute top-7 z-10 flex -translate-x-1/2 flex-col items-center"
-              style={{ left: `${meanPosition * 100}%` }}
-              title={`Mean target ${formatPriceTarget(targets.mean)}`}
-            >
-              <span
-                className="h-6 w-0.5"
-                style={{ backgroundColor: meanColor }}
-              />
-              <span className="mt-1 whitespace-nowrap rounded border border-violet-400/70 px-1.5 py-0.5 text-xs font-medium text-violet-300">
-                Mean {formatPriceTarget(targets.mean)}
-              </span>
-            </div>
+        <div className="target-range">
+          <div className="target-track" aria-hidden="true">
+            {targets.price != null && <span className="target-marker current-marker" data-active={focus === "price"} style={{ left: `${pricePosition * 100}%` }} />}
+            {targets.mean != null && <span className="target-marker mean-marker" data-active={focus === "mean"} style={{ left: `${meanPosition * 100}%` }} />}
           </div>
-          <div className="flex justify-between gap-2 text-xs text-slate-500">
-            <span>Low {formatPriceTarget(targets.low)}</span>
-            <span>High {formatPriceTarget(targets.high)}</span>
-          </div>
-        </>
-      ) : (
-        <p className="py-6 text-sm text-slate-500">
-          No price target data available.
-        </p>
-      )}
+          <dl className="target-extents"><div><dt>Low target</dt><dd>{formatPriceTarget(targets.low)}</dd></div><div><dt>High target</dt><dd>{formatPriceTarget(targets.high)}</dd></div></dl>
+        </div>
+      ) : <p className="research-empty">No price target range available.</p>}
+      <dl className="target-key-values"><div><dt><span className="series-key current-key" />Current price</dt><dd>{formatPriceTarget(targets.price)}</dd></div><div><dt><span className="series-key company-key" />Mean target</dt><dd>{formatPriceTarget(targets.mean)}</dd></div></dl>
     </div>
   );
 }
@@ -362,6 +310,7 @@ function RecommendationStackedBar({ trends }: { trends: TrendItem[] }) {
 
   const spec = useMemo<IBarChartSpec>(() => ({
     type: "bar",
+    animation: typeof window !== "undefined" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     data: [
       {
         id: "recommendationTrendData",
@@ -372,7 +321,7 @@ function RecommendationStackedBar({ trends }: { trends: TrendItem[] }) {
     yField: "count",
     seriesField: "type",
     stack: true,
-    height: 180,
+    height: 230,
     padding: [12, 8, 8, 0],
     color: STACKED_RECOMMENDATION_BUCKETS.map((bucket) => bucket.color),
     legends: {
@@ -385,23 +334,14 @@ function RecommendationStackedBar({ trends }: { trends: TrendItem[] }) {
       {
         orient: "left",
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
         grid: {
           visible: true,
-          style: {
-            stroke: "#1f2937",
-          },
         },
       },
       {
         orient: "bottom",
         label: {
-          style: {
-            fill: "#94a3b8",
-          },
         },
       },
     ],
@@ -421,17 +361,15 @@ function RecommendationStackedBar({ trends }: { trends: TrendItem[] }) {
   }), [values]);
 
   return (
-    <div className="rounded-md border border-white/10 p-3">
-      <div className="mb-3">
-        <p className="text-sm font-medium text-slate-100">Recommendation history</p>
-      </div>
-      <div className="flex h-44 gap-3">
+    <div className="recommendation-history">
+      <h3>Recommendation history</h3>
+      <div className="recommendation-plot">
         <div className="min-w-0 flex-1">
           <VChart spec={spec} />
         </div>
-        <div className="flex shrink-0 flex-col justify-center gap-2">
+        <div className="recommendation-legend">
           {LEGEND_RECOMMENDATION_BUCKETS.map((bucket) => (
-            <div key={bucket.key} className="flex items-center gap-2 text-xs text-slate-400">
+            <div key={bucket.key} className="flex items-center gap-2 text-xs text-muted-foreground">
               <span
                 className="h-2.5 w-2.5 rounded-sm"
                 style={{ backgroundColor: bucket.color }}
@@ -449,14 +387,12 @@ function RecentRatingActions({ history }: { history: HistoryItem[] }) {
   const latest = history[0] ?? null;
 
   return (
-    <div className="rounded-md border border-white/10">
-      <div className="border-b border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-500">
-        Latest rating action
-      </div>
+    <div className="rating-update">
+      <h3>Latest rating action</h3>
       {latest ? (
         <RatingAction item={latest} />
       ) : (
-        <p className="px-3 py-4 text-sm text-slate-500">No recent actions.</p>
+        <p className="px-3 py-4 text-sm text-muted-foreground">No recent actions.</p>
       )}
     </div>
   );
@@ -503,33 +439,31 @@ function CurrentMonthPriceChanges({ history }: { history: HistoryItem[] }) {
         });
 
   return (
-    <div className="rounded-md border border-white/10">
-      <div className="border-b border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-500">
-        Current month price changes
-      </div>
+    <div className="target-changes">
+      <h3>Price target changes</h3>
       {total > 0 ? (
-        <div className="px-3 py-2.5">
+        <div className="target-change-content">
           <div className="mb-3 flex items-center justify-between text-xs">
-            <span className="text-slate-500">{monthLabel}</span>
-            <span className="font-medium text-slate-200">{total} updates</span>
+            <span className="text-muted-foreground">{monthLabel}</span>
+            <span className="font-medium text-foreground">{total} updates</span>
           </div>
-          <div className="flex h-3 overflow-hidden rounded-full bg-slate-700/80">
+          <div className="flex h-3 overflow-hidden rounded-full bg-muted">
             <DistributionSegment
               count={counts.raises}
               total={total}
-              color="#10b981"
+              color="#14775d"
               label="Raises"
             />
             <DistributionSegment
               count={counts.maintains}
               total={total}
-              color="#f59e0b"
+              color="#b9872b"
               label="Maintains"
             />
             <DistributionSegment
               count={counts.lowers}
               total={total}
-              color="#ef4444"
+              color="#be3557"
               label="Lowers"
             />
             <DistributionSegment
@@ -540,18 +474,18 @@ function CurrentMonthPriceChanges({ history }: { history: HistoryItem[] }) {
             />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-            <DistributionRow label="Raises" count={counts.raises} color="#10b981" />
+            <DistributionRow label="Raises" count={counts.raises} color="#14775d" />
             <DistributionRow
               label="Maintains"
               count={counts.maintains}
-              color="#f59e0b"
+              color="#b9872b"
             />
-            <DistributionRow label="Lowers" count={counts.lowers} color="#ef4444" />
+            <DistributionRow label="Lowers" count={counts.lowers} color="#be3557" />
             <DistributionRow label="Other" count={counts.other} color="#64748b" />
           </div>
         </div>
       ) : (
-        <p className="px-3 py-4 text-sm text-slate-500">
+        <p className="px-3 py-4 text-sm text-muted-foreground">
           No current month price target changes.
         </p>
       )}
@@ -590,11 +524,11 @@ function DistributionRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="flex items-center gap-1.5 text-slate-500">
+      <span className="flex items-center gap-1.5 text-muted-foreground">
         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
         {label}
       </span>
-      <span className="font-medium text-slate-100">{count}</span>
+      <span className="font-medium text-foreground">{count}</span>
     </div>
   );
 }
@@ -610,40 +544,40 @@ function RatingAction({ item }: { item: HistoryItem }) {
   const rating = ratingLabel(fromGrade, toGrade);
 
   return (
-    <div className="space-y-2 px-3 py-2.5 text-xs">
+    <div className="rating-action">
       <div className="flex justify-between gap-3">
-        <span className="text-slate-500">Date</span>
-        <span className="text-right text-slate-200">
+        <span className="text-muted-foreground">Date</span>
+        <span className="text-right text-foreground">
           {formatDate(item.epochGradeDate)}
         </span>
       </div>
       <div className="flex justify-between gap-3">
-        <span className="text-slate-500">Analyst</span>
-        <span className="truncate text-right font-medium text-slate-100">
+        <span className="text-muted-foreground">Analyst</span>
+        <span className="text-right font-medium text-foreground">
           {textValue(item.firm)}
         </span>
       </div>
       <div className="flex justify-between gap-3">
-        <span className="text-slate-500">Rating action</span>
-        <span className="text-right text-slate-200">
+        <span className="text-muted-foreground">Rating action</span>
+        <span className="text-right text-foreground">
           {action}
         </span>
       </div>
       <div className="flex justify-between gap-3">
-        <span className="text-slate-500">Rating</span>
-        <span className="text-right text-slate-200">
+        <span className="text-muted-foreground">Rating</span>
+        <span className="text-right text-foreground">
           {rating}
         </span>
       </div>
       <div className="flex justify-between gap-3">
-        <span className="text-slate-500">Price Target</span>
+        <span className="text-muted-foreground">Price Target</span>
         <span
           className={`text-right font-medium ${
             targetChange == null
-              ? "text-slate-200"
+              ? "text-foreground"
               : targetChange >= 0
-                ? "text-emerald-400"
-                : "text-red-400"
+                ? "text-[var(--positive)]"
+                : "text-[var(--negative)]"
           }`}
         >
           {priorTarget == null || currentTarget == null
@@ -657,11 +591,11 @@ function RatingAction({ item }: { item: HistoryItem }) {
 
 function LoadingState() {
   return (
-    <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-      <div className="h-40 animate-pulse rounded-md border border-white/10 bg-muted/20" />
-      <div className="h-48 animate-pulse rounded-md border border-white/10 bg-muted/20" />
-      <div className="h-64 animate-pulse rounded-md border border-white/10 bg-muted/20" />
-      <div className="h-64 animate-pulse rounded-md border border-white/10 bg-muted/20" />
+    <div className="analyst-loading">
+      <div className="h-40 animate-pulse rounded-md border border-border bg-muted/20" />
+      <div className="h-48 animate-pulse rounded-md border border-border bg-muted/20" />
+      <div className="h-64 animate-pulse rounded-md border border-border bg-muted/20" />
+      <div className="h-64 animate-pulse rounded-md border border-border bg-muted/20" />
     </div>
   );
 }

@@ -36,6 +36,7 @@ export default function PerformanceComparisonPanel({
   onBenchmarkChange,
 }: PerformanceComparisonPanelProps) {
   const [searchInput, setSearchInput] = useState("");
+  const [selectedPeriod, setSelectedPeriod] = useState("1y");
   const [benchmarkGroups, setBenchmarkGroups] = useState<
     PerformanceBenchmarkGroup[]
   >([]);
@@ -74,119 +75,83 @@ export default function PerformanceComparisonPanel({
     chooseBenchmark(nextBenchmark);
   };
 
-  return (
-    <div className="rounded-lg border border-border bg-black/40 px-3 py-3 backdrop-blur-md">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-slate-200">
-          Performance Comparison
-        </h2>
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {data?.as_of && !loading && (
-            <span className="text-xs text-slate-500">As of {data.as_of}</span>
-          )}
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span>Benchmark: ETFs or custom</span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "h-8 gap-1.5 border border-white/10 bg-black/30 px-2",
-                    "text-xs text-slate-200 hover:bg-white/10 hover:text-slate-100",
-                  )}
-                >
-                  {selectedBenchmark?.symbol ?? "Select ETF"}
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="max-h-96 w-72 overflow-y-auto">
-                {benchmarkGroups.map((group, groupIndex) => (
-                  <div key={group.category}>
-                    {groupIndex > 0 && <DropdownMenuSeparator />}
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">
-                      {group.category}
-                    </DropdownMenuLabel>
-                    {group.options.map((option) => (
-                      <BenchmarkItem
-                        key={option.symbol}
-                        value={option.symbol}
-                        label={option.symbol}
-                        description={option.description}
-                        selected={option.symbol === benchmarkUpper}
-                        onSelect={chooseBenchmark}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <form
-            onSubmit={handleCustomSubmit}
-            className="flex items-center gap-2 text-xs text-slate-500"
-          >
-            <span>or Custom</span>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(event) =>
-                  setSearchInput(event.target.value.toUpperCase())
-                }
-                placeholder="Any symbol"
-                className={cn(
-                  "h-8 w-32 rounded-md border border-white/10 bg-black/30",
-                  "py-1 pl-2 pr-8 text-xs uppercase text-slate-200 outline-none",
-                  "placeholder:normal-case placeholder:text-muted-foreground",
-                  "hover:bg-white/10 focus:border-white/30",
-                )}
-              />
-              <button
-                type="submit"
-                aria-label="Set custom benchmark"
-                className={cn(
-                  "absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2",
-                  "items-center justify-center rounded text-muted-foreground",
-                  "hover:bg-white/10 hover:text-slate-100",
-                )}
-              >
-                <Search className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+  const activePeriod = data?.periods.find(period => period.id === selectedPeriod) ?? data?.periods[0];
+  const activeIndex = data?.periods.findIndex(period => period.id === activePeriod?.id) ?? -1;
+  const scale = Math.max(Math.abs(activePeriod?.symbol_return ?? 0), Math.abs(activePeriod?.benchmark_return ?? 0), 0.01);
 
-      {error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : loading ? (
-        <LoadingTable />
-      ) : data ? (
-        <div className="overflow-x-auto rounded-md border border-white/10">
-          <div className="min-w-[760px]">
-            <div className="grid grid-cols-9 border-b border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-500">
-              <span>Metric</span>
-              {data.periods.map((period) => (
-                <span key={period.id} className="text-right">
-                  {period.label}
-                </span>
+  return (
+    <div className="research-section performance-section" aria-busy={loading}>
+      <div className="research-heading">
+        <div><h2>Performance Comparison</h2><p>See how the company moves against your benchmark.</p></div>
+        {data?.as_of && !loading && <span className="research-date">As of {data.as_of}</span>}
+      </div>
+      <div className="performance-controls">
+        <div className="benchmark-control">
+          <span>Compare against</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" className="benchmark-picker" aria-label={`Choose benchmark, ${benchmarkUpper}`}>
+                {selectedBenchmark?.symbol ?? benchmarkUpper}<ChevronDown size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-96 w-72 overflow-y-auto">
+              {benchmarkGroups.map((group, groupIndex) => (
+                <div key={group.category}>
+                  {groupIndex > 0 && <DropdownMenuSeparator />}
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">{group.category}</DropdownMenuLabel>
+                  {group.options.map(option => <BenchmarkItem key={option.symbol} value={option.symbol} label={option.symbol} description={option.description} selected={option.symbol === benchmarkUpper} onSelect={chooseBenchmark} />)}
+                </div>
               ))}
-            </div>
-            <PerformanceRow
-              label={data.symbol}
-              values={data.periods.map((period) => period.symbol_return)}
-            />
-            <PerformanceRow
-              label={data.benchmark_label}
-              values={data.periods.map((period) => period.benchmark_return)}
-            />
-          </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      ) : (
-        <p className="text-sm text-slate-500">No performance data available.</p>
-      )}
+        <form onSubmit={handleCustomSubmit} className="custom-benchmark">
+          <span>or</span>
+          <div>
+            <input type="text" value={searchInput} onChange={event => setSearchInput(event.target.value.toUpperCase())} placeholder="Enter a symbol" aria-label="Custom benchmark symbol" />
+            <button type="submit" aria-label="Set custom benchmark" disabled={!searchInput.trim()}><Search size={15} /></button>
+          </div>
+        </form>
+        <span className="comparison-status" data-loading={loading} role="status">{loading ? "Updating comparison…" : !error && data && activePeriod ? `Showing ${activePeriod.label} returns against ${data.benchmark_label}.` : ""}</span>
+      </div>
+      {error ? <p className="research-error">{error}</p> : loading ? (
+        <div className="performance-pending"><p className="research-loading">Loading performance returns…</p><LoadingTable /></div>
+      ) : data && activePeriod ? (
+        <>
+          <div className="performance-focus">
+            <div className="comparison-readout" key={`${data.symbol}-${data.benchmark_symbol}-${activePeriod.id}`}>
+              <p>{activePeriod.label} return</p>
+              <dl className="comparison-values" aria-live="polite" aria-atomic="true">
+                <div><dt><span className="series-key company-key" />{data.symbol}</dt><dd><PercentValue value={activePeriod.symbol_return} /></dd></div>
+                <div><dt><span className="series-key benchmark-key" />{data.benchmark_label}</dt><dd><PercentValue value={activePeriod.benchmark_return} /></dd></div>
+              </dl>
+            </div>
+            <div className="comparison-plot">
+              <div className="period-selector" role="group" aria-label="Performance period">
+                {data.periods.map(period => <button key={period.id} type="button" aria-label={`Compare ${period.label} returns`} aria-pressed={activePeriod.id === period.id} onClick={() => setSelectedPeriod(period.id)}>{period.label}</button>)}
+              </div>
+              <div className="comparison-bars" aria-hidden="true">
+                {[[data.symbol, activePeriod.symbol_return], [data.benchmark_label, activePeriod.benchmark_return]].map(([label, value], index) => {
+                  const number = typeof value === "number" ? value : null;
+                  const width = number === null ? 0 : Math.abs(number) / scale * 47;
+                  return <div className="comparison-bar-row" key={index}><span>{label}</span><div className="return-track"><i className="return-zero" /><span className={index === 0 ? "company-return" : "benchmark-return"} style={{ left: `${number !== null && number < 0 ? 50 - width : 50}%`, width: `${width}%` }} /></div></div>;
+                })}
+                <span className="comparison-zero-label">0%</span>
+              </div>
+            </div>
+          </div>
+          <div className="performance-scroll" tabIndex={0} role="region" aria-label="Performance returns by period">
+            <table className="performance-table">
+              <thead><tr><th scope="col" className="text-left">Returns</th>{data.periods.map((period, index) => <th key={period.id} scope="col" data-selected={index === activeIndex} className="text-right">{period.label}</th>)}</tr></thead>
+              <tbody>
+                <PerformanceRow label={data.symbol} values={data.periods.map(period => period.symbol_return)} activeIndex={activeIndex} />
+                <PerformanceRow label={data.benchmark_label} values={data.periods.map(period => period.benchmark_return)} activeIndex={activeIndex} />
+              </tbody>
+            </table>
+          </div>
+          <p className="research-footnote">Returns are based on daily closing prices.</p>
+        </>
+      ) : <p className="research-empty">No performance data available.</p>}
     </div>
   );
 }
@@ -222,12 +187,12 @@ function BenchmarkItem({
 
 function LoadingTable() {
   return (
-    <div className="overflow-x-auto rounded-md border border-white/10">
+    <div className="overflow-x-auto rounded-md border border-border" tabIndex={0} role="region" aria-label="Loading performance returns">
       <div className="min-w-[760px]">
-        <div className="grid grid-cols-9 border-b border-white/10 bg-white/[0.03] px-3 py-2">
+        <div className="grid grid-cols-9 border-b border-border bg-muted/50 px-3 py-2">
           <div className="h-3 w-12 animate-pulse rounded bg-muted" />
           {LOADING_ROWS.map((label) => (
-            <span key={label} className="text-right text-xs text-slate-500">
+            <span key={label} className="text-right text-xs text-muted-foreground">
               {label}
             </span>
           ))}
@@ -235,9 +200,9 @@ function LoadingTable() {
         {["Symbol", "Benchmark"].map((label) => (
           <div
             key={label}
-            className="grid grid-cols-9 border-b border-white/10 px-3 py-2 last:border-b-0"
+            className="grid grid-cols-9 border-b border-border px-3 py-2 last:border-b-0"
           >
-            <span className="text-sm text-slate-500">{label}</span>
+            <span className="text-sm text-muted-foreground">{label}</span>
             {LOADING_ROWS.map((period) => (
               <div
                 key={`${label}-${period}`}
@@ -254,32 +219,34 @@ function LoadingTable() {
 function PerformanceRow({
   label,
   values,
+  activeIndex,
 }: {
   label: string;
   values: Array<number | null>;
+  activeIndex: number;
 }) {
   return (
-    <div className="grid grid-cols-9 border-b border-white/10 px-3 py-2 text-sm last:border-b-0">
-      <span className="text-slate-400">{label}</span>
+    <tr className="text-sm">
+      <th scope="row" className="text-left font-normal text-muted-foreground">{label}</th>
       {values.map((value, index) => (
-        <PercentValue key={index} value={value} />
+        <td key={index} className="text-right" data-selected={index === activeIndex}><PercentValue value={value} /></td>
       ))}
-    </div>
+    </tr>
   );
 }
 
 function PercentValue({ value }: { value: number | null }) {
   if (value === null) {
-    return <span className="text-right text-slate-500">N/A</span>;
+    return <span className="text-right text-muted-foreground">N/A</span>;
   }
 
   return (
     <span
       className={cn(
         "text-right font-medium tabular-nums",
-        value > 0 && "text-emerald-500",
-        value < 0 && "text-red-500",
-        value === 0 && "text-slate-200",
+        value > 0 && "text-[var(--positive)]",
+        value < 0 && "text-[var(--negative)]",
+        value === 0 && "text-foreground",
       )}
     >
       {value > 0 ? "+" : ""}

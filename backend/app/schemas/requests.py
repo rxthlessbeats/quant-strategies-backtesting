@@ -29,6 +29,8 @@ class ChartQuery(BaseModel):
     def validate_date_pair(self) -> "ChartQuery":
         if (self.start is None) != (self.end is None):
             raise ValueError("start and end must be provided together")
+        if self.start is not None and self.end is not None and self.start > self.end:
+            raise ValueError("start must be on or before end")
         return self
 
 

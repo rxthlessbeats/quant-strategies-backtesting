@@ -3,5 +3,5 @@ export default function TradingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <main className="min-h-0 flex-1">{children}</main>;
+  return <main id="main-content" className="min-h-0 flex-1">{children}</main>;
 }

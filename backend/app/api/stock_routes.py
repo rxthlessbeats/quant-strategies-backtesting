@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_chart_query
 from app.api.http_errors import http_502
 from app.db.database import get_db
 from app.schemas.market import StockBarsResponse
-from app.schemas.requests import ChartQuery
 from app.services.stock_data_service import get_ohlcv
 
 router = APIRouter(prefix="/api/v1/stocks", tags=["stocks"])
@@ -18,8 +18,8 @@ def get_stock_bars(
     interval: str = Query("1d", description="Bar interval: 1d, 1h, etc."),
     db: Session = Depends(get_db),
 ):
+    query = get_chart_query(symbol=symbol, start=start, end=end, interval=interval)
     try:
-        query = ChartQuery(symbol=symbol, start=start, end=end, interval=interval)
         result = get_ohlcv(db, query)
     except Exception as e:
         raise http_502(e, fallback="Failed to load stock data") from e

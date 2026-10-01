@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 import pandas as pd
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from app.schemas.db import (
     FetchMetaRow,
     MarketDataModuleRow,
 )
+from app.schemas.settings import settings
 
 
 def _is_sqlite(session: Session) -> bool:
@@ -21,9 +22,6 @@ def _is_sqlite(session: Session) -> bool:
 
 
 def commit_session(session: Session) -> None:
-    if _is_sqlite(session):
-        session.commit()
-        return
     session.commit()
 
 
@@ -55,6 +53,23 @@ def get_bars(
     return list(db.scalars(stmt).all())
 
 
+def get_bar_bounds(
+    db: Session,
+    symbol: str,
+    interval: str,
+    start_ts: int | None = None,
+    end_ts: int | None = None,
+) -> tuple[int | None, int | None]:
+    stmt = select(func.min(Bar.ts), func.max(Bar.ts)).where(
+        Bar.symbol == symbol, Bar.interval == interval
+    )
+    if start_ts is not None:
+        stmt = stmt.where(Bar.ts >= start_ts)
+    if end_ts is not None:
+        stmt = stmt.where(Bar.ts <= end_ts)
+    return tuple(db.execute(stmt).one())
+
+
 def upsert_bars(db: Session, rows: list[BarRow]) -> int:
     if not rows:
         return 0
@@ -63,7 +78,7 @@ def upsert_bars(db: Session, rows: list[BarRow]) -> int:
 
     def write() -> None:
         if _is_sqlite(db):
-            stmt = sqlite_insert(Bar).values(payloads)
+            stmt = sqlite_insert(Bar)
             stmt = stmt.on_conflict_do_update(
                 index_elements=["symbol", "interval", "ts"],
                 set_={
@@ -75,7 +90,7 @@ def upsert_bars(db: Session, rows: list[BarRow]) -> int:
                     "adj_close": stmt.excluded.adj_close,
                 },
             )
-            db.execute(stmt)
+            db.execute(stmt, payloads)
         else:
             for payload in payloads:
                 existing = db.scalar(
@@ -244,6 +259,12 @@ def upsert_company_fundamentals(
     payload["fetched_at"] = now
 
     fundamentals = get_company_fundamentals(db, row.symbol)
+    if fundamentals is not None and all(
+        getattr(fundamentals, key) == value
+        for key, value in payload.items()
+        if key != "fetched_at"
+    ):
+        return fundamentals
     if fundamentals is None:
         fundamentals = CompanyFundamentals(**payload)
         db.add(fundamentals)
@@ -261,8 +282,8 @@ def last_expected_daily_ts() -> int:
     return int(_last_expected_daily_date().timestamp())
 
 
-def _last_expected_daily_date() -> pd.Timestamp:
-    now = pd.Timestamp.now(tz="America/New_York")
+def _last_expected_daily_date(now: pd.Timestamp | None = None) -> pd.Timestamp:
+    now = now if now is not None else pd.Timestamp.now(tz="America/New_York")
     today = pd.Timestamp(now.date(), tz="UTC")
     market_open = now.normalize() + pd.Timedelta(hours=9, minutes=30)
     if now.dayofweek < 5 and now >= market_open:
@@ -274,10 +295,24 @@ def is_fresh(db: Session, symbol: str, interval: str) -> bool:
     if interval != "1d":
         return False
     meta = get_fetch_meta(db, symbol, interval)
-    if meta is None or meta.last_bar_ts is None:
+    if meta is None or not meta.fetched_at:
+        return False
+    now = pd.Timestamp.now(tz="America/New_York")
+    checked_at = pd.Timestamp(meta.fetched_at)
+    if checked_at.tzinfo is None:
+        checked_at = checked_at.tz_localize("UTC")
+    age = (now - checked_at).total_seconds()
+    if 0 <= age < settings.bar_refresh_seconds:
+        return True
+    if meta.last_bar_ts is None or age < 0:
         return False
     last_bar_day = pd.to_datetime(meta.last_bar_ts, unit="s", utc=True).normalize()
-    return last_bar_day >= _last_expected_daily_date()
+    expected = _last_expected_daily_date(now)
+    close = pd.Timestamp(expected.date(), tz="America/New_York") + pd.Timedelta(
+        hours=16
+    )
+    # ponytail: weekday calendar; holidays retry at the short refresh interval.
+    return last_bar_day >= expected and now >= close and checked_at >= close
 
 
 def load_bars_dataframe(

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.db import crud
-from app.fetch.yahoo import DataDownloader
+from app.fetch.downloader import get_yahoo_downloader
 from app.schemas.db import CompanyFundamentalsRow
 from app.schemas.market import (
     CompanyOverviewResponse,
@@ -50,7 +50,7 @@ OVERVIEW_FIELD_MAP = {
 
 
 def search_tickers(keywords: str) -> TickerSearchResponse:
-    downloader = DataDownloader()
+    downloader = get_yahoo_downloader()
     results = [
         TickerSearchItem(**item)
         for item in downloader.search_symbols(keywords)

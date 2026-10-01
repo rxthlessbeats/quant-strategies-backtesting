@@ -12,7 +12,7 @@ import { hasDuplicate, type IndicatorSelection } from "@/lib/indicator-utils";
 export type SettingsMode = "add" | "edit";
 
 const PARAM_ERROR_MESSAGE =
-  "Indicator settings should be positive numbers no larger than 500";
+  "Indicator settings should be positive numbers no larger than 500. Bar periods must be whole numbers.";
 
 function parseNumberInput(value: string): number | null {
   const trimmed = value.trim();
@@ -20,9 +20,9 @@ function parseNumberInput(value: string): number | null {
   return Number(trimmed);
 }
 
-function isValidParam(value: string): boolean {
+function isValidParam(key: string, value: string): boolean {
   const parsed = parseNumberInput(value);
-  return parsed !== null && parsed > 0 && parsed <= 500;
+  return parsed !== null && parsed > 0 && parsed <= 500 && (key === "std" || Number.isInteger(parsed));
 }
 
 function paramsEqual(
@@ -90,7 +90,7 @@ export default function IndicatorSettingsPanel({
 
   const handleApply = () => {
     const entries = Object.entries(draftInputs);
-    if (entries.length === 0 || entries.some(([, value]) => !isValidParam(value))) {
+    if (entries.some(([key, value]) => !isValidParam(key, value))) {
       onPeriodError?.(PARAM_ERROR_MESSAGE);
       return;
     }
@@ -98,6 +98,10 @@ export default function IndicatorSettingsPanel({
     const params = Object.fromEntries(
       entries.map(([key, value]) => [key, parseNumberInput(value)!]),
     );
+    if (params.fast !== undefined && params.fast >= params.slow) {
+      setError("Fast must be smaller than slow");
+      return;
+    }
     const isDuplicate = hasDuplicate(selections, indicatorId, params);
     const isSameSlot =
       mode === "edit" &&
@@ -132,18 +136,18 @@ export default function IndicatorSettingsPanel({
       {anchorEl && <PopoverAnchor virtualRef={anchorVirtualRef as RefObject<Element>} />}
       <PopoverContent
         align="start"
-        className="z-[100] w-64 border-white/10 bg-[#0f172a] p-0 text-slate-100"
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="z-[100] w-64 border-border bg-popover p-0 text-foreground"
+        onCloseAutoFocus={(e) => { e.preventDefault(); anchorEl?.focus(); }}
       >
-        <div className="border-b border-white/10 px-3 py-2">
+        <div className="border-b border-border px-3 py-2">
           <h3 className="text-sm font-medium">Settings</h3>
         </div>
         <div className="space-y-3 px-3 py-3">
           <div>
-            <label className="mb-1 block text-xs text-slate-400">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Indicator
             </label>
-            <span className="text-sm lowercase text-slate-200">
+            <span className="text-sm lowercase text-foreground">
               {indicatorId}
             </span>
           </div>
@@ -151,9 +155,9 @@ export default function IndicatorSettingsPanel({
             <div key={key}>
               <label
                 htmlFor={`indicator-${key}`}
-                className="mb-1 block text-xs capitalize text-slate-400"
+                className="mb-1 block text-xs capitalize text-muted-foreground"
               >
-                {key}
+                {key === "std" ? "Standard deviations" : (key.charAt(0).toUpperCase() + key.slice(1)).replaceAll("_", " ")}
               </label>
               <input
                 id={`indicator-${key}`}
@@ -167,20 +171,21 @@ export default function IndicatorSettingsPanel({
                   }));
                   setError(null);
                 }}
-                className="w-full rounded border border-white/15 bg-black/40 px-2 py-1 text-sm text-slate-100"
+                className="w-full rounded border border-border bg-card px-2 py-1 text-sm text-foreground"
               />
             </div>
           ))}
+          {Object.keys(draftInputs).length === 0 && <p className="text-xs text-muted-foreground">No parameters needed. Apply to add this indicator.</p>}
           {error && (
             <p className="text-xs text-red-400">{error}</p>
           )}
         </div>
-        <div className="flex justify-end gap-2 border-t border-white/10 px-3 py-2">
+        <div className="flex justify-end gap-2 border-t border-border px-3 py-2">
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-slate-300 hover:bg-white/10 hover:text-slate-100"
+            className="h-8 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
             onClick={handleBack}
           >
             Back

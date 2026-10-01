@@ -56,39 +56,37 @@ function VolumeRangeChart({
   const hasRange = low != null && high != null && high > low;
 
   return (
-    <div className="border-b border-dotted border-border/70 pb-4">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        Volume
-      </p>
-      <div className="relative mt-3 h-3 overflow-hidden rounded-full bg-slate-700/80">
+    <div className="volume-profile">
+      <h4>Trading volume</h4>
+      <div className="volume-range">
         {hasRange && (
           <>
             <div
-              className="absolute inset-y-0 rounded-full bg-sky-500/75"
+              className="volume-today"
               style={{ width: `${todayPosition * 100}%` }}
             />
             <div
-              className="absolute inset-y-[-3px] z-10 w-0.5 -translate-x-1/2 bg-amber-400"
+              className="volume-average"
               style={{ left: `${avgPosition * 100}%` }}
               title={`20D avg ${formatNumber(average)}`}
             />
           </>
         )}
       </div>
-      <div className="mt-1 flex justify-between gap-2 text-xs text-muted-foreground">
+      <div className="range-endpoints">
         <span>20D low {formatNumber(low)}</span>
         <span>20D high {formatNumber(high)}</span>
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+      <dl className="volume-readout">
         <div>
-          <p className="text-muted-foreground">Today</p>
-          <p className="font-medium text-sky-400">{formatNumber(today)}</p>
+          <dt>Today</dt>
+          <dd>{formatNumber(today)}</dd>
         </div>
         <div>
-          <p className="text-muted-foreground">20D average</p>
-          <p className="font-medium text-amber-400">{formatNumber(average)}</p>
+          <dt><span className="average-key" />20D average</dt>
+          <dd>{formatNumber(average)}</dd>
         </div>
-      </div>
+      </dl>
     </div>
   );
 }
@@ -126,31 +124,27 @@ function OhlcSegmentChart({
   });
 
   return (
-    <div>
-      <div className="mb-1 flex items-center justify-between text-xs">
-        <span className="font-medium text-foreground">{label}</span>
-      </div>
-      <div className="flex h-3 gap-0.5">
+    <div className="market-range">
+      <p>{label}</p>
+      <div className="market-range-track">
         {hasSegments && (
           <>
             <div
-              className="h-full rounded-sm bg-slate-700/80"
+              className="range-remainder"
               style={segmentStyle(startSegmentWidth)}
             />
             <div
-              className={`h-full min-w-px rounded-sm ${
-                isDown ? "bg-red-500" : "bg-emerald-500"
-              }`}
+              className={`range-session ${isDown ? "is-down" : "is-up"}`}
               style={segmentStyle(changeSegmentWidth)}
             />
             <div
-              className="h-full rounded-sm bg-slate-700/80"
+              className="range-remainder"
               style={segmentStyle(endSegmentWidth)}
             />
           </>
         )}
       </div>
-      <div className="mt-1 flex justify-between gap-2 text-xs text-muted-foreground">
+      <div className="range-endpoints">
         <span>
           {lowLabel} {formatNumber(low)}
         </span>
@@ -281,103 +275,34 @@ export default function MarketStatisticsPanel({
   const updatedAt = formatDailyMarketAsOf(barRange?.latestDate);
 
   return (
-    <section className="w-full overflow-hidden rounded-lg border border-border bg-black/40 backdrop-blur-md lg:flex-1">
-      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            Market statistics
-          </h2>
-          {/*
-          <p className="text-xs text-muted-foreground">
-            52-week range, volume, and dividend snapshot
-          </p>
-          */}
-        </div>
-        {updatedAt && (
-          <span className="text-xs text-muted-foreground">
-            Updated {updatedAt}
-          </span>
-        )}
+    <section className="market-statistics">
+      <div className="panel-subheading">
+        <h3>Market statistics</h3>
+        {updatedAt && <span>Daily close · {updatedAt}</span>}
       </div>
-
-      <div className="p-4">
-        {error && (
-          <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
+      {error ? <p className="research-error">{error}</p> : loading ? (
+        <p className="research-loading" role="status">Loading market statistics…</p>
+      ) : (
+        <>
+          <div className="market-price-ranges">
+            <h4>Price range</h4>
+            <OhlcSegmentChart label="Today" low={barRange?.latestLow ?? null} open={barRange?.latestOpen ?? null} close={close} high={barRange?.latestHigh ?? null} />
+            <OhlcSegmentChart label="52 weeks" low={rangeLow} open={barRange?.latestOpen ?? null} close={close} high={normalizedRangeHigh} />
           </div>
-        )}
-
-        {!error && !loading && (
-          <div className="space-y-4">
-            <div className="border-b border-dotted border-border/70 pb-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Price range
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 space-y-4">
-                <OhlcSegmentChart
-                  label="Today"
-                  low={barRange?.latestLow ?? null}
-                  open={barRange?.latestOpen ?? null}
-                  close={close}
-                  high={barRange?.latestHigh ?? null}
-                />
-                <OhlcSegmentChart
-                  label="52 weeks"
-                  low={rangeLow}
-                  open={barRange?.latestOpen ?? null}
-                  close={close}
-                  high={normalizedRangeHigh}
-                />
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2 text-xs md:grid-cols-5">
-                <div>
-                  <p className="text-muted-foreground">Today high</p>
-                  <p className="font-medium text-foreground">
-                    {formatNumber(barRange?.latestHigh ?? null)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Today low</p>
-                  <p className="font-medium text-foreground">
-                    {formatNumber(barRange?.latestLow ?? null)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Today open</p>
-                  <p className="font-medium text-foreground">
-                    {formatNumber(barRange?.latestOpen ?? null)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Today close</p>
-                  <p className="font-medium text-foreground">
-                    {formatNumber(close)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Drop from high</p>
-                  <p className="font-medium text-red-500">
-                    {drawdownFromHigh == null
-                      ? "—"
-                      : percentValue(-drawdownFromHigh)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <VolumeRangeChart
-              low={volumeLow}
-              average={volumeAverage}
-              today={volumeToday}
-              high={volumeHigh}
-            />
-          </div>
-        )}
-      </div>
+          <dl className="market-session">
+            {[
+              ["Today high", formatNumber(barRange?.latestHigh ?? null)],
+              ["Today low", formatNumber(barRange?.latestLow ?? null)],
+              ["Today open", formatNumber(barRange?.latestOpen ?? null)],
+              ["Today close", formatNumber(close)],
+              ["Drop from high", drawdownFromHigh == null ? "—" : percentValue(-drawdownFromHigh)],
+            ].map(([label, value]) => (
+              <div key={label}><dt>{label}</dt><dd className={label === "Drop from high" ? "negative" : undefined}>{value}</dd></div>
+            ))}
+          </dl>
+          <VolumeRangeChart low={volumeLow} average={volumeAverage} today={volumeToday} high={volumeHigh} />
+        </>
+      )}
     </section>
   );
 }

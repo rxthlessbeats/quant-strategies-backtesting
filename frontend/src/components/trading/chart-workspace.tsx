@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   fetchChart,
   fetchCompanyOverview,
@@ -27,10 +28,8 @@ import type {
   PerformanceComparisonResponse,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import AnalystRecommendationsPanel from "./analyst-recommendations-panel";
 import ChartLegend from "./chart-legend";
 import ChartToolbar from "./chart-toolbar";
-import CompanyStatsPanel from "./company-stats-panel";
 import CompanySummary from "./company-summary";
 import IndicatorSettingsPanel, {
   type SettingsMode,
@@ -39,6 +38,9 @@ import MarketStatisticsPanel from "./market-statistics-panel";
 import PerformanceComparisonPanel from "./performance-comparison-panel";
 import TradingChart from "./TradingChart";
 import ValuationMetricsPanel from "./valuation-metrics-panel";
+
+const AnalystRecommendationsPanel = dynamic(() => import("./analyst-recommendations-panel"), { ssr: false });
+const CompanyStatsPanel = dynamic(() => import("./company-stats-panel"), { ssr: false });
 
 type SettingsState =
   | { mode: "add"; id: string; defaultParams: Record<string, number> }
@@ -53,14 +55,12 @@ interface SavedChartSettings {
 
 function readSavedChartSettings(): SavedChartSettings | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(CHART_SETTINGS_STORAGE_KEY);
-  if (!raw) return null;
-
   try {
+    const raw = window.localStorage.getItem(CHART_SETTINGS_STORAGE_KEY);
+    if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SavedChartSettings>;
     if (typeof parsed.indicators !== "string") return null;
     const indicators = parsed.indicators.trim();
-    if (!indicators) return null;
     return { indicators };
   } catch {
     return null;
@@ -70,10 +70,25 @@ function readSavedChartSettings(): SavedChartSettings | null {
 export default function ChartWorkspace() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [researchReady, setResearchReady] = useState(false);
+  const [chartRetry, setChartRetry] = useState(0);
+
+  useEffect(() => {
+    if (!window.IntersectionObserver) { setResearchReady(true); return; }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { setResearchReady(true); observer.disconnect(); }
+    }, { rootMargin: "400px" });
+    ["analysts", "financials"].forEach(id => {
+      const section = document.getElementById(id);
+      if (section) observer.observe(section);
+    });
+    return () => observer.disconnect();
+  }, []);
 
   const initialSymbol = searchParams.get("symbol") ?? DEFAULT_CHART_SYMBOL;
   const initialIndicators =
     searchParams.get("indicators") ?? "sma:5,sma:20";
+  const initialLoading = initialSymbol.trim().length > 0;
 
   const [symbol, setSymbol] = useState(initialSymbol.trim().toUpperCase());
   const [selectedView, setSelectedView] = useState<ChartView>("6M");
@@ -84,7 +99,7 @@ export default function ChartWorkspace() {
     null,
   );
   const [overview, setOverview] = useState<CompanyOverview | null>(null);
-  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewLoading, setOverviewLoading] = useState(initialLoading);
   const [marketStats, setMarketStats] = useState<MarketDataAreaResponse | null>(
     null,
   );
@@ -92,21 +107,21 @@ export default function ChartWorkspace() {
     useState<MarketDataAreaResponse | null>(null);
   const [marketEarnings, setMarketEarnings] =
     useState<MarketDataAreaResponse | null>(null);
-  const [marketStatsLoading, setMarketStatsLoading] = useState(false);
-  const [statementsLoading, setStatementsLoading] = useState(false);
-  const [earningsLoading, setEarningsLoading] = useState(false);
+  const [marketStatsLoading, setMarketStatsLoading] = useState(initialLoading);
+  const [statementsLoading, setStatementsLoading] = useState(initialLoading);
+  const [earningsLoading, setEarningsLoading] = useState(initialLoading);
   const [marketStatsError, setMarketStatsError] = useState<string | null>(null);
   const [analystData, setAnalystData] = useState<MarketDataAreaResponse | null>(
     null,
   );
-  const [analystLoading, setAnalystLoading] = useState(false);
+  const [analystLoading, setAnalystLoading] = useState(initialLoading);
   const [analystError, setAnalystError] = useState<string | null>(null);
   const [performance, setPerformance] =
     useState<PerformanceComparisonResponse | null>(null);
   const [performanceBenchmark, setPerformanceBenchmark] = useState("SPY");
-  const [performanceLoading, setPerformanceLoading] = useState(false);
+  const [performanceLoading, setPerformanceLoading] = useState(initialLoading);
   const [performanceError, setPerformanceError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(initialLoading);
   const [error, setError] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"error" | "success">("error");
@@ -184,7 +199,7 @@ export default function ChartWorkspace() {
       setSymbol((current) => (current === nextSymbol ? current : nextSymbol));
     }
     const urlIndicators = searchParams.get("indicators");
-    if (urlIndicators) {
+    if (urlIndicators !== null) {
       const nextSelections = parseIndicatorSelections(urlIndicators);
       setSelections((current) =>
         buildIndicatorsQuery(current) === buildIndicatorsQuery(nextSelections)
@@ -215,7 +230,7 @@ export default function ChartWorkspace() {
     setEarningsLoading(hasSymbol);
     setAnalystLoading(hasSymbol);
     setPerformanceLoading(hasSymbol);
-  }, [symbol]);
+  }, [symbol, chartRetry]);
 
   const colorMap = useMemo(() => buildColorMap(selections), [selections]);
   const quote = useMemo(
@@ -278,9 +293,7 @@ export default function ChartWorkspace() {
       const params = new URLSearchParams({
         symbol: sym,
       });
-      if (indicators) {
-        params.set("indicators", indicators);
-      }
+      params.set("indicators", indicators);
       if (
         window.location.pathname === "/chart" &&
         window.location.search === `?${params.toString()}`
@@ -293,13 +306,15 @@ export default function ChartWorkspace() {
   );
 
   const saveChartSettings = useCallback(() => {
-    window.localStorage.setItem(
-      CHART_SETTINGS_STORAGE_KEY,
-      JSON.stringify({
-        indicators: buildIndicatorsQuery(selections),
-      }),
-    );
-    showAlert("Preset saved", "success");
+    try {
+      window.localStorage.setItem(
+        CHART_SETTINGS_STORAGE_KEY,
+        JSON.stringify({ indicators: buildIndicatorsQuery(selections) }),
+      );
+      showAlert("Preset saved", "success");
+    } catch {
+      showAlert("Your browser could not save this preset. Enable site storage and try again.");
+    }
   }, [selections, showAlert]);
 
   useEffect(() => {
@@ -314,32 +329,31 @@ export default function ChartWorkspace() {
       return;
     }
 
-    const timer = setTimeout(() => {
-      const id = ++requestId.current;
-      setLoading(true);
-      setError(null);
+    const id = ++requestId.current;
+    setLoading(true);
+    setError(null);
 
-      fetchChart({
-        symbol: sym,
-        interval: "1d",
-        indicators: indicators || undefined,
+    fetchChart({
+      symbol: sym,
+      interval: "1d",
+      indicators: indicators || undefined,
+    })
+      .then((data) => {
+        if (id !== requestId.current) return;
+        setChartData(data);
+        syncUrl(sym, indicators);
       })
-        .then((data) => {
-          if (id !== requestId.current) return;
-          setChartData(data);
-          syncUrl(sym, indicators);
-        })
-        .catch((e) => {
-          if (id !== requestId.current) return;
-          setError(e instanceof Error ? e.message : "Request failed");
-        })
-        .finally(() => {
-          if (id === requestId.current) setLoading(false);
-        });
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [symbol, selections, syncUrl]);
+      .catch((e) => {
+        if (id !== requestId.current) return;
+        setError(e instanceof Error ? e.message : "Request failed");
+      })
+      .finally(() => {
+        if (id === requestId.current) setLoading(false);
+      });
+    return () => {
+      requestId.current += 1;
+    };
+  }, [symbol, selections, syncUrl, chartRetry]);
 
   useEffect(() => {
     const sym = symbol.trim().toUpperCase();
@@ -364,7 +378,7 @@ export default function ChartWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [symbol]);
+  }, [symbol, chartRetry]);
 
   useEffect(() => {
     const sym = symbol.trim().toUpperCase();
@@ -396,7 +410,7 @@ export default function ChartWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [symbol]);
+  }, [symbol, chartRetry]);
 
   useEffect(() => {
     const sym = symbol.trim().toUpperCase();
@@ -454,7 +468,7 @@ export default function ChartWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [symbol]);
+  }, [symbol, chartRetry]);
 
   useEffect(() => {
     const sym = symbol.trim().toUpperCase();
@@ -486,7 +500,7 @@ export default function ChartWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [symbol, performanceBenchmark]);
+  }, [symbol, performanceBenchmark, chartRetry]);
 
   const handleSettingsApply = useCallback(
     (params: Record<string, number>) => {
@@ -522,7 +536,7 @@ export default function ChartWorkspace() {
   );
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className="chart-workspace">
       {alertMessage && (
         <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4">
           <div
@@ -563,27 +577,27 @@ export default function ChartWorkspace() {
       )}
       {showChartHeader && (
         <>
-          <div
-            className={cn(
-              "fixed inset-x-0 top-16 z-30 border-b border-border/60 shadow-sm",
-              "bg-background/80 px-6 py-3 backdrop-blur-md",
-              "supports-[backdrop-filter]:bg-background/65",
-              "tablet:left-44 tablet:px-10",
-              "desktop:px-14",
-            )}
-          >
+          <div className="workspace-summary">
             <CompanySummary
+              symbol={symbol}
               overview={overview}
               overviewLoading={overviewLoading}
               quote={quote}
               quoteLoading={quoteLoading}
             />
+            <div className="company-about-slot">{overview?.description && <details className="company-about"><summary>About {overview.name || symbol}</summary><p>{overview.description}</p></details>}</div>
           </div>
-          <div className="h-[85px]" aria-hidden="true" />
+          <nav className="research-nav" aria-label="Research sections">
+            <a href="#price-action">Price action</a>
+            <a href="#market-valuation">Market & valuation</a>
+            <a href="#performance">Performance</a>
+            <a href="#analysts">Analysts</a>
+            <a href="#financials">Financials & earnings</a>
+          </nav>
         </>
       )}
-      <div className="mt-3 flex flex-col gap-3">
-        <div className="overflow-hidden rounded-lg border border-border bg-black/40 backdrop-blur-md">
+      <div className="research-panels">
+        <section id="price-action" className="price-panel research-anchor">
           <ChartToolbar
             selectedView={selectedView}
             onViewChange={setSelectedView}
@@ -593,7 +607,7 @@ export default function ChartWorkspace() {
             onSaveSettings={saveChartSettings}
           />
 
-          <div className="relative overflow-hidden border-t border-border bg-[#020817]">
+          <div className="chart-canvas relative overflow-hidden border-t border-border bg-card">
             {error && (
               <div className="absolute left-3 top-2 z-10 rounded-md border border-destructive/50 bg-destructive/90 px-2 py-1 text-xs text-white">
                 {error}
@@ -613,17 +627,20 @@ export default function ChartWorkspace() {
             ) : (
               <div
                 className={cn(
-                  "flex items-center justify-center text-sm text-slate-500",
+                  "flex flex-col gap-3 items-center justify-center text-sm text-muted-foreground",
                   "h-[520px]",
                 )}
               >
-                {loading ? "Loading chart…" : "Select settings to load chart"}
+                {loading ? "Loading daily price history…" : error ? "Price history could not be loaded. Search another ticker or try again." : "Search a ticker to explore its price history"}
+                {error && <button type="button" className="chart-retry" onClick={() => setChartRetry(value => value + 1)}>Try again</button>}
               </div>
             )}
           </div>
-        </div>
+        </section>
 
-        <div className="flex flex-col gap-3 lg:flex-row">
+        <section id="market-valuation" className="research-section market-research research-anchor">
+          <div className="research-heading"><div><h2>Market & valuation</h2><p>Today’s trading context and the price of the business.</p></div></div>
+          <div className="market-valuation">
           <MarketStatisticsPanel
             data={marketStats}
             bars={chartData?.bars ?? []}
@@ -638,25 +655,26 @@ export default function ChartWorkspace() {
             loading={marketStatsLoading || statementsLoading}
             error={marketStatsError}
           />
-        </div>
+          </div>
+        </section>
 
-        <PerformanceComparisonPanel
+        <section id="performance" className="research-anchor"><PerformanceComparisonPanel
           data={performance}
           loading={performanceLoading}
           error={performanceError}
           benchmark={performanceBenchmark}
           onBenchmarkChange={setPerformanceBenchmark}
-        />
+        /></section>
 
-        <AnalystRecommendationsPanel
+        <section id="analysts" className="research-anchor">{researchReady ? <AnalystRecommendationsPanel
           data={analystData}
           marketStats={marketStats}
           bars={chartData?.bars ?? []}
           loading={analystLoading}
           error={analystError}
-        />
+        /> : <div className="research-placeholder"><h2>Analyst recommendations</h2><p>Explore price targets, rating actions, and recommendation history.</p></div>}</section>
 
-        <CompanyStatsPanel
+        <section id="financials" className="research-anchor">{researchReady ? <CompanyStatsPanel
           overview={overview}
           data={marketStats}
           statements={marketStatements}
@@ -667,7 +685,7 @@ export default function ChartWorkspace() {
             statementsLoading ||
             earningsLoading
           }
-        />
+        /> : <div className="research-placeholder"><h2>Financials & earnings</h2><p>Explore profitability, growth, and earnings trends.</p></div>}</section>
       </div>
 
       <IndicatorSettingsPanel

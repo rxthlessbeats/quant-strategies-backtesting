@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     data_provider: str = "yahoo"
     alpha_vantage_api_key: str | None = None
     api_secret: str = ""
+    bar_refresh_seconds: int = Field(default=60, ge=1, le=3600)
     refresh_scheduler_enabled: bool = False
     refresh_symbol_universe: str = ""
     refresh_timezone: str = "America/New_York"

@@ -140,10 +140,9 @@ def _close_series(bars: list[BarPoint]) -> pd.Series:
 
     series = pd.Series(
         data=[bar.close for bar in bars],
-        index=[
-            pd.to_datetime(bar.timestamp, unit="s", utc=True).normalize()
-            for bar in bars
-        ],
+        index=pd.to_datetime(
+            [bar.timestamp for bar in bars], unit="s", utc=True
+        ).normalize(),
         dtype="float64",
     )
     return series.sort_index().groupby(level=0).last()

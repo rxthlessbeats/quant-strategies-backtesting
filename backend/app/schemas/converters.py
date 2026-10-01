@@ -9,19 +9,18 @@ from app.schemas.db import BarRow
 
 def bar_points_from_dataframe(df: pd.DataFrame) -> list[BarPoint]:
     bars: list[BarPoint] = []
-    for ts, row in df.iterrows():
-        if pd.isna(row.get("Close")):
+    for ts, (open_, high, low, close, volume, adj) in _bar_values(df):
+        if pd.isna(close):
             continue
-        adj = row.get("Adj_close")
         bars.append(
             BarPoint(
-                timestamp=int(pd.Timestamp(ts).timestamp()),
-                open=float(row["Open"]),
-                high=float(row["High"]),
-                low=float(row["Low"]),
-                close=float(row["Close"]),
-                volume=float(row.get("Volume") or 0),
-                adj_close=float(adj) if pd.notna(adj) else float(row["Close"]),
+                timestamp=int(ts),
+                open=float(open_),
+                high=float(high),
+                low=float(low),
+                close=float(close),
+                volume=float(volume) if pd.notna(volume) else 0.0,
+                adj_close=float(adj) if pd.notna(adj) else float(close),
             )
         )
     return bars
@@ -31,24 +30,31 @@ def bar_rows_from_dataframe(
     df: pd.DataFrame, symbol: str, interval: str
 ) -> list[BarRow]:
     rows: list[BarRow] = []
-    for ts, row in df.iterrows():
-        if pd.isna(row.get("Close")):
+    for ts, (open_, high, low, close, volume, adj) in _bar_values(df):
+        if pd.isna(close):
             continue
-        adj = row.get("Adj_close")
         rows.append(
             BarRow(
                 symbol=symbol,
                 interval=interval,
-                ts=int(pd.Timestamp(ts).timestamp()),
-                open=float(row["Open"]),
-                high=float(row["High"]),
-                low=float(row["Low"]),
-                close=float(row["Close"]),
-                volume=float(row.get("Volume") or 0),
+                ts=int(ts),
+                open=float(open_),
+                high=float(high),
+                low=float(low),
+                close=float(close),
+                volume=float(volume) if pd.notna(volume) else 0.0,
                 adj_close=float(adj) if pd.notna(adj) else None,
             )
         )
     return rows
+
+
+def _bar_values(df: pd.DataFrame):
+    timestamps = pd.DatetimeIndex(df.index).as_unit("s").asi8
+    values = df.reindex(
+        columns=["Open", "High", "Low", "Close", "Volume", "Adj_close"]
+    ).itertuples(index=False, name=None)
+    return zip(timestamps, values)
 
 
 def bars_to_dataframe(bars: list[Bar]) -> pd.DataFrame:
@@ -58,7 +64,7 @@ def bars_to_dataframe(bars: list[Bar]) -> pd.DataFrame:
         )
     records = [
         {
-            "Date": pd.to_datetime(b.ts, unit="s", utc=True),
+            "Date": b.ts,
             "Open": b.open,
             "High": b.high,
             "Low": b.low,
@@ -68,7 +74,9 @@ def bars_to_dataframe(bars: list[Bar]) -> pd.DataFrame:
         }
         for b in bars
     ]
-    return pd.DataFrame(records).set_index("Date").sort_index()
+    df = pd.DataFrame(records)
+    df["Date"] = pd.to_datetime(df["Date"], unit="s", utc=True)
+    return df.set_index("Date").sort_index()
 
 
 def series_to_float_list(series: pd.Series) -> list[float | None]:

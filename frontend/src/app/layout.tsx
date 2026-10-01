@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Gabarito } from "next/font/google";
 import AppHeader from "@/components/nav/app-header";
-import { SideNav } from "@/components/nav";
 import { siteConfig } from "@/config/site";
 import { cn } from "@/lib/utils";
 import "@/style/globals.css";
@@ -13,7 +12,7 @@ export const metadata: Metadata = {
   title: siteConfig.title,
   description: siteConfig.description,
   icons: {
-    icon: "/RookieTraderLogo.png",
+    icon: "/rookie-mark.svg",
     apple: "/RookieTraderLogo.png",
   },
 };
@@ -27,12 +26,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={cn("bg-background font-sans", gabarito.variable)}>
         <Providers>
-          <div className="flex min-h-[100dvh]">
-            <SideNav />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <AppHeader />
-              <div className="min-h-0 flex-grow overflow-auto">{children}</div>
-            </div>
+          <div className="app-shell">
+            <a href="#main-content" className="skip-link">Skip to content</a>
+            <AppHeader />
+            {children}
+            <footer className="app-footer">
+              <span>Rookie Trader <span className="footer-divider">/</span> A little perspective goes a long way.</span>
+              <span>Daily market data <span className="footer-divider">/</span> Built for the curious.</span>
+            </footer>
           </div>
         </Providers>
       </body>

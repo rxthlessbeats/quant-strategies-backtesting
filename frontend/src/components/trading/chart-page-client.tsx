@@ -5,7 +5,7 @@ import ChartWorkspace from "@/components/trading/chart-workspace";
 
 export default function ChartPageClient() {
   return (
-    <Container className="pb-6">
+    <Container className="workspace-page">
       <ChartWorkspace />
     </Container>
   );

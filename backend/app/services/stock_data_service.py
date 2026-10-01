@@ -9,6 +9,13 @@ from app.services.sync_service import sync_symbol
 
 
 def get_ohlcv(db: Session, query: ChartQuery) -> OhlcvResult:
+    ohlcv, _ = get_ohlcv_with_frame(db, query)
+    return ohlcv
+
+
+def get_ohlcv_with_frame(
+    db: Session, query: ChartQuery
+) -> tuple[OhlcvResult, pd.DataFrame]:
     source = sync_symbol(db, query.symbol, query.start, query.end, query.interval)
     start_ts = int(pd.Timestamp(query.start).timestamp()) if query.start else None
     end_ts = int(pd.Timestamp(query.end).timestamp()) if query.end else None
@@ -24,7 +31,7 @@ def get_ohlcv(db: Session, query: ChartQuery) -> OhlcvResult:
             meta_row.last_bar_ts, unit="s", utc=True
         ).strftime("%Y-%m-%d")
 
-    return OhlcvResult(
+    ohlcv = OhlcvResult(
         symbol=query.symbol,
         interval=query.interval,
         start=(df.index.min().strftime("%Y-%m-%d") if not df.empty else query.start),
@@ -37,3 +44,4 @@ def get_ohlcv(db: Session, query: ChartQuery) -> OhlcvResult:
         ),
         bars=bars,
     )
+    return ohlcv, df
