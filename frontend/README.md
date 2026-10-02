@@ -4,7 +4,7 @@ A custom market research interface with interactive price-history replay, a tech
 
 ## Node.js version
 
-Next.js 15 requires **Node.js 18.18+** (recommended: **20 LTS** or **22 LTS**).
+Next.js 15 runs on **Node.js 24**, which this repo pins.
 
 Check your version:
 
@@ -14,14 +14,14 @@ node -v
 
 If you see `v18.17.1` or lower, upgrade:
 
-1. **Installer (simplest):** https://nodejs.org/ — download **20 LTS** or **22 LTS**, run the installer, then open a **new** terminal and run `node -v` again.
+1. **Installer (simplest):** https://nodejs.org/ — download **24 LTS**, run the installer, then open a **new** terminal and run `node -v` again.
 2. **nvm-windows:** https://github.com/coreybutler/nvm-windows — then:
    ```cmd
-   nvm install 20
-   nvm use 20
+   nvm install 24
+   nvm use 24
    ```
 
-This repo includes `.nvmrc` set to `20` for nvm/fnm users.
+This repo includes `.nvmrc` set to `24` for nvm/fnm users.
 
 ## Setup
 

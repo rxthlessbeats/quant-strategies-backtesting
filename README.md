@@ -20,7 +20,7 @@ uv run start
 - App: http://localhost:3000
 - API docs: http://127.0.0.1:8000/docs
 
-Node 20 is pinned in `.mise.toml`. If `npm` is missing: `mise install`.
+Node 24 is pinned in `.mise.toml`. If `npm` is missing: `mise install`.
 
 ## Deploy (Vercel)
 
